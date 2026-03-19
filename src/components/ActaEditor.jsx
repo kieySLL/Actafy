@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from './AuthContext'
 import { Field } from './AuthScreen'
 import { fmtCOP, calcTotals, emptyAct, emptyGrupo, today, avatarColor, initials } from '../lib/helpers'
@@ -6,16 +6,19 @@ import { exportPDF, exportWord, exportExcel } from '../lib/exporters'
 import { saveActa } from '../lib/actasDB'
 
 export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initialForm, actaId }) {
-  const { user, username } = useAuth()
+  const { user, userId } = useAuth()
   const [tab, setTab] = useState(0)
   const [modal, setModal] = useState(null) // null | 'cliente' | { type:'catalogo', gi }
   const [catalogSearch, setCatalogSearch] = useState('')
   const [exporting, setExporting] = useState(null)
   const [exportMsg, setExportMsg] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [saveMsg, setSaveMsg] = useState(null)
+  // Auto-save state: null | 'pending' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState(null)
   const [currentActaId, setCurrentActaId] = useState(actaId || null)
-  const fotoRef = useRef()
+  const fotoRef    = useRef()
+  const actaIdRef  = useRef(actaId || null)   // ref para evitar stale closure en auto-save
+  const timerRef   = useRef(null)
+  const mountedRef = useRef(false)            // skip first render
 
   const [form, setForm] = useState(() => initialForm ? { ...initialForm } : {
     numero: '1', fecha: today(), periodo: '', contrato: '',
@@ -27,6 +30,27 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
   })
 
   const sf = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // ── Auto-save (debounced 2.5 s tras cada cambio en el formulario) ──────────
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    setSaveStatus('pending')
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(async () => {
+      setSaveStatus('saving')
+      try {
+        const freshT = calcTotals(form.grupos, user.aiu || {}, user.iva ?? 19)
+        const newId  = await saveActa(userId, form, freshT, actaIdRef.current)
+        if (!actaIdRef.current) { actaIdRef.current = newId; setCurrentActaId(newId) }
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus(null), 3000)
+      } catch (e) {
+        console.error('Auto-save:', e.message)
+        setSaveStatus('error')
+      }
+    }, 2500)
+    return () => clearTimeout(timerRef.current)
+  }, [form]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const T = calcTotals(form.grupos, user.aiu || {}, user.iva ?? 19)
   const TABS = ['Obra y cliente', 'Actividades', 'Fotos', 'Exportar']
@@ -117,27 +141,14 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
       else exportExcel(d)
       setExportMsg({ type: 'ok', text: `${fmt} generado y descargado correctamente` })
       // auto-guardar al exportar
-      const newId = await saveActa(username, form, T, currentActaId)
-      if (!currentActaId) setCurrentActaId(newId)
+      const newId = await saveActa(userId, form, T, actaIdRef.current)
+      if (!actaIdRef.current) { actaIdRef.current = newId; setCurrentActaId(newId) }
     } catch (e) {
       setExportMsg({ type: 'err', text: `Error al generar ${fmt}: ${e.message}` })
     }
     setExporting(null)
   }
 
-  const doSave = async () => {
-    setSaving(true)
-    setSaveMsg(null)
-    try {
-      const newId = await saveActa(username, form, T, currentActaId)
-      setCurrentActaId(newId)
-      setSaveMsg({ type: 'ok', text: 'Acta guardada' })
-      setTimeout(() => setSaveMsg(null), 3000)
-    } catch (e) {
-      setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
-    }
-    setSaving(false)
-  }
 
   // ── Render tabs ────────────────────────────────────────────────────────────
   const catFiltered = (user.catalogo || []).filter(c =>
@@ -164,22 +175,29 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10 }}>Total</p>
           <p style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{T.total > 0 ? fmtCOP(T.total) : '—'}</p>
         </div>
+        {/* Indicador de auto-guardado */}
+        {saveStatus && (
+          <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+            color: saveStatus === 'saved'  ? 'rgba(100,220,130,0.95)'
+                 : saveStatus === 'error'  ? 'rgba(255,120,120,0.95)'
+                 : saveStatus === 'saving' ? 'rgba(255,255,255,0.5)'
+                 : 'rgba(255,190,60,0.9)' }}>
+            <span style={{ fontSize: 7, lineHeight: 1 }}>
+              {saveStatus === 'saving' ? '○' : '●'}
+            </span>
+            {saveStatus === 'saved'  ? 'Guardado'
+           : saveStatus === 'error'  ? 'Error al guardar'
+           : saveStatus === 'saving' ? 'Guardando…'
+           : 'Sin guardar'}
+          </span>
+        )}
         <button onClick={onBack} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>← Historial</button>
-        <button onClick={doSave} disabled={saving} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>
-          {saving ? '…' : '💾 Guardar'}
-        </button>
         {currentActaId && onNew && (
           <button onClick={onNew} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>+ Nueva</button>
         )}
         <button onClick={onSettings} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>⚙ Perfil</button>
         <button onClick={onLogout} style={{ borderColor: 'rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.65)', fontSize: 12, padding: '6px 12px' }}>Salir</button>
       </div>
-
-      {saveMsg && (
-        <div className={`alert alert-${saveMsg.type}`} style={{ margin: '8px 0 0', borderRadius: 'var(--radio)' }}>
-          {saveMsg.text}
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="tab-bar">
