@@ -9,10 +9,15 @@ import {
 import { fmtCOP, fmtNum } from './helpers'
 
 // ── Paleta ─────────────────────────────────────────────────────────────────
-const AZUL  = [27,  58,  92 ]   // Azul corporativo oscuro
-const AZUL_L = [235, 242, 251]  // Fondo encabezado de grupo
-const GRIS  = [248, 250, 252]   // Fila alterna
-const VERDE = [26,  107, 53 ]   // Solo TOTAL FINAL
+const N      = [22,  45,  75 ]   // Navy: texto oscuro y headers
+const N_MED  = [42,  82, 132 ]   // Navy medio: acento secundario
+const N_L    = [236, 242, 250]   // Navy muy claro: fondo grupo tabla
+const GR_L   = [248, 249, 251]   // Gris claro: fila alterna
+const GR_M   = [210, 218, 228]   // Gris medio: bordes suaves
+const VE     = [22,  101, 52 ]   // Verde: solo TOTAL FINAL
+const TX     = [22,  30,  46 ]   // Texto principal
+const SUB    = [108, 118, 134]   // Texto subtítulo/etiqueta
+const WHITE  = [255, 255, 255]
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const filename = (d, ext) =>
@@ -27,91 +32,146 @@ const fmtFecha = (str) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  PDF  —  diseño corporativo de una sola página
+//  PDF  —  documento de obra colombiano: letterhead + diseño corporativo
 // ─────────────────────────────────────────────────────────────────────────────
 export async function exportPDF(d) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W  = doc.internal.pageSize.getWidth()
-  const mg = 14                    // margen horizontal
-  const uw = W - mg * 2            // ancho útil
+  const W  = doc.internal.pageSize.getWidth()   // 210 mm
+  const mg = 14
+  const uw = W - mg * 2
 
-  // ── 1. ENCABEZADO ─────────────────────────────────────────────────────────
-  const hH = 20                    // altura del banner
-  doc.setFillColor(...AZUL)
-  doc.rect(0, 0, W, hH, 'F')
+  // ── A. LETTERHEAD (zona blanca con logo y datos del contratista) ──────────
+  const LH = 26   // altura zona letterhead
+  doc.setFillColor(255, 255, 255)
+  doc.rect(0, 0, W, LH, 'F')
 
-  // Logo (si existe, flotado a la izquierda dentro del banner)
+  // Barra de acento izquierda (4 mm) — marca corporativa
+  doc.setFillColor(...N)
+  doc.rect(0, 0, 4, LH, 'F')
+
+  // Logo: cuadrado 22×22 mm, alineado a la barra izquierda
   if (d.logo) {
     try {
       const ext = d.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG'
-      doc.addImage(d.logo, ext, mg, 1.5, 17, 17)
+      doc.addImage(d.logo, ext, 7, 2, 22, 22)
     } catch {}
   }
 
-  // Título centrado
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(13); doc.setFont('helvetica', 'bold')
-  doc.text('ACTA DE OBRA', W / 2, 9, { align: 'center' })
+  // Nombre de la empresa contratista
+  const nameX = d.logo ? 33 : 9
+  doc.setTextColor(...TX)
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+  doc.text(d.contratista || '—', nameX, 10, { maxWidth: W / 2 - nameX })
 
-  // Número y fecha en la misma línea (izq y der)
-  doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text(`No. ${d.numero}`, W / 2, 16, { align: 'center' })
-  doc.text(fmtFecha(d.fecha), W - mg, 16, { align: 'right' })
+  // NIT y representante debajo del nombre
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...SUB)
+  doc.text(`NIT: ${d.nit_c || '—'}`, nameX, 16)
+  if (d.representante) doc.text(d.representante, nameX, 21)
 
-  // ── 2. FILA DE META (Obra | Contrato | Periodo) ───────────────────────────
-  const metaY = hH + 2
-  const metaFields = [
-    ['OBRA / PROYECTO', d.obra || '—'],
-    ['No. CONTRATO',    d.contrato || '—'],
+  // Fecha y ciudad en la esquina superior derecha
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...SUB)
+  doc.text(fmtFecha(d.fecha), W - mg, 11, { align: 'right' })
+  if (d.ciudad) doc.text(d.ciudad, W - mg, 17, { align: 'right' })
+
+  // Línea divisoria suave entre letterhead y título
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.3)
+  doc.line(mg, LH, W - mg, LH)
+
+  // ── B. BANDA DE TÍTULO (navy sólido) ──────────────────────────────────────
+  const TH = 11  // altura banda título
+  doc.setFillColor(...N)
+  doc.rect(0, LH, W, TH, 'F')
+
+  doc.setTextColor(...WHITE)
+  doc.setFontSize(10.5); doc.setFont('helvetica', 'bold')
+  doc.text('ACTA DE OBRA', mg + 2, LH + 7.5)
+
+  // Número resaltado a la derecha
+  doc.setFontSize(10.5); doc.setFont('helvetica', 'bold')
+  doc.text(`No. ${d.numero}`, W - mg, LH + 7.5, { align: 'right' })
+
+  // ── C. FRANJA DE META (Obra | Contrato | Periodo) ─────────────────────────
+  const metaY = LH + TH + 1
+  const metaH = 11
+  const metaItems = [
+    ['OBRA / PROYECTO', d.obra     || '—'],
+    ['NO. CONTRATO',    d.contrato || '—'],
     ['PERIODO',         d.periodo  || '—'],
   ]
-  const metaW = uw / metaFields.length
-  const metaH = 10
+  const mW = uw / metaItems.length
 
-  metaFields.forEach(([lbl, val], i) => {
-    const x = mg + i * metaW
-    doc.setFillColor(...GRIS)
-    doc.rect(x, metaY, metaW - 0.5, metaH, 'F')
-    doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(130, 130, 130)
-    doc.text(lbl, x + 2, metaY + 3.8)
-    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(20, 20, 20)
-    doc.text(String(val), x + 2, metaY + 8.5)
+  metaItems.forEach(([lbl, val], i) => {
+    const x = mg + i * mW
+    // Separador vertical entre celdas
+    if (i > 0) {
+      doc.setDrawColor(...GR_M); doc.setLineWidth(0.2)
+      doc.line(x, metaY, x, metaY + metaH)
+    }
+    doc.setFillColor(...GR_L)
+    doc.rect(x, metaY, mW - (i < metaItems.length - 1 ? 0 : 0), metaH, 'F')
+    doc.setFontSize(5.8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...SUB)
+    doc.text(lbl, x + 3, metaY + 4)
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...TX)
+    doc.text(String(val), x + 3, metaY + 9.5, { maxWidth: mW - 6 })
   })
+  // Borde exterior de la franja
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.25)
+  doc.rect(mg, metaY, uw, metaH)
 
-  // ── 3. PARTES  (CONTRATANTE | CONTRATISTA) ────────────────────────────────
-  let y = metaY + metaH + 3
+  // ── D. PARTES DEL CONTRATO ────────────────────────────────────────────────
+  let y = metaY + metaH + 4
   const halfW = uw / 2
 
-  // Encabezados de columna
-  doc.setFillColor(...AZUL)
-  doc.rect(mg,           y, halfW - 0.5, 6, 'F')
-  doc.rect(mg + halfW,   y, halfW,       6, 'F')
-  doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-  doc.text('CONTRATANTE',  mg + halfW / 2 - 0.5,    y + 4, { align: 'center' })
-  doc.text('CONTRATISTA',  mg + halfW + halfW / 2,   y + 4, { align: 'center' })
-  y += 6
+  // Micro-etiqueta de sección
+  doc.setFontSize(5.8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...SUB)
+  doc.text('PARTES DEL CONTRATO', mg, y + 0.5)
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.15)
+  doc.line(mg + 38, y, mg + uw, y)
+  y += 3.5
 
-  // Datos de cada parte
-  const left  = [d.cliente      || '—', `NIT: ${d.nit_cl || '—'}`,      `Dir. Obra: ${d.director    || '—'}`]
-  const right = [d.contratista  || '—', `NIT: ${d.nit_c  || '—'}`,      `Rep.: ${d.representante    || '—'}`]
-  const bold  = [true, false, false]
-  const rh    = 5.5
+  // Encabezados de columna (navy)
+  doc.setFillColor(...N)
+  doc.rect(mg,           y, halfW - 0.5, 6.5, 'F')
+  doc.rect(mg + halfW,   y, halfW,       6.5, 'F')
+  doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE)
+  doc.text('CONTRATANTE', mg + halfW / 2 - 0.3,  y + 4.5, { align: 'center' })
+  doc.text('CONTRATISTA', mg + halfW + halfW / 2, y + 4.5, { align: 'center' })
+  y += 6.5
 
-  left.forEach((txt, i) => {
+  // Filas de datos
+  const leftD  = [d.cliente || '—', `NIT: ${d.nit_cl || '—'}`, `Dir. de Obra: ${d.director || '—'}`]
+  const rightD = [d.contratista || '—', `NIT: ${d.nit_c || '—'}`, `Rep. Legal: ${d.representante || '—'}`]
+  const boldR  = [true, false, false]
+  const rh     = 5.8
+
+  leftD.forEach((txt, i) => {
     const ry   = y + i * rh
-    const fill = i % 2 === 0 ? [255,255,255] : [251,252,254]
+    const fill = i % 2 === 0 ? WHITE : [250, 251, 253]
     doc.setFillColor(...fill)
     doc.rect(mg,         ry, halfW - 0.5, rh, 'F')
     doc.rect(mg + halfW, ry, halfW,       rh, 'F')
+    // Divisor vertical
+    doc.setDrawColor(...GR_M); doc.setLineWidth(0.15)
+    doc.line(mg + halfW, ry, mg + halfW, ry + rh)
     doc.setFontSize(7.5)
-    doc.setFont('helvetica', bold[i] ? 'bold' : 'normal')
-    doc.setTextColor(25, 25, 25)
-    doc.text(txt,      mg + 2,         ry + 3.8)
-    doc.text(right[i], mg + halfW + 2, ry + 3.8)
+    doc.setFont('helvetica', boldR[i] ? 'bold' : 'normal')
+    doc.setTextColor(...TX)
+    doc.text(txt,       mg + 3,         ry + 4)
+    doc.text(rightD[i], mg + halfW + 3, ry + 4)
   })
-  y += left.length * rh + 4
+  // Borde exterior partes
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.25)
+  doc.rect(mg, y, uw, leftD.length * rh)
 
-  // ── 4. TABLA DE ACTIVIDADES ───────────────────────────────────────────────
+  y += leftD.length * rh + 5
+
+  // ── E. TABLA DE ACTIVIDADES ───────────────────────────────────────────────
+  doc.setFontSize(5.8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...SUB)
+  doc.text('RELACIÓN DE ACTIVIDADES EJECUTADAS', mg, y + 0.5)
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.15)
+  doc.line(mg + 67, y, mg + uw, y)
+  y += 4
+
   const rows = []
   d.grupos.forEach((g) => {
     rows.push([{
@@ -119,8 +179,8 @@ export async function exportPDF(d) {
       colSpan: 6,
       styles: {
         fontStyle: 'bold', fontSize: 7.5,
-        fillColor: AZUL_L, textColor: AZUL,
-        cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+        fillColor: N_L, textColor: N,
+        cellPadding: { top: 3, bottom: 3, left: 4, right: 3 },
       },
     }])
     g.acts.filter(a => a.desc).forEach((a) => {
@@ -131,109 +191,140 @@ export async function exportPDF(d) {
 
   autoTable(doc, {
     startY: y,
-    head: [['Ítem', 'Descripción', 'Und', 'Cantidad', 'V. Unitario', 'V. Total']],
+    head: [['Ítem', 'Descripción de la actividad', 'Und', 'Cantidad', 'V. Unitario', 'V. Total']],
     body: rows,
     margin: { left: mg, right: mg },
     styles: {
       fontSize: 7.5,
-      cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
-      lineColor: [218, 226, 236],
+      cellPadding: { top: 2.2, bottom: 2.2, left: 2.5, right: 2.5 },
+      lineColor: GR_M,
       lineWidth: 0.15,
+      textColor: TX,
+      font: 'helvetica',
     },
     headStyles: {
-      fillColor: AZUL, textColor: [255, 255, 255],
-      fontStyle: 'bold', fontSize: 7.5,
-      cellPadding: { top: 3, bottom: 3, left: 2, right: 2 },
+      fillColor: N_MED,
+      textColor: WHITE,
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 2.5, right: 2.5 },
     },
-    alternateRowStyles: { fillColor: [251, 252, 254] },
+    alternateRowStyles: { fillColor: GR_L },
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
-      2: { cellWidth: 12, halign: 'center' },
-      3: { cellWidth: 18, halign: 'right' },
-      4: { cellWidth: 28, halign: 'right' },
-      5: { cellWidth: 28, halign: 'right' },
+      2: { cellWidth: 13, halign: 'center' },
+      3: { cellWidth: 19, halign: 'right' },
+      4: { cellWidth: 29, halign: 'right' },
+      5: { cellWidth: 29, halign: 'right' },
     },
   })
 
-  y = doc.lastAutoTable.finalY + 4
+  y = doc.lastAutoTable.finalY + 5
 
-  // ── 5. RESUMEN FINANCIERO (bloque compacto derecho) ───────────────────────
-  const T      = d.totals
-  const aiu    = d.aiu
-  const blkW   = 76          // ancho del bloque de totales
-  const tx     = W - mg - blkW
-  const lbW    = blkW * 0.57 // ancho columna etiqueta
-  const vW     = blkW * 0.43 // ancho columna valor
-  const rowH   = 6.5
+  // ── F. RESUMEN FINANCIERO ─────────────────────────────────────────────────
+  const T    = d.totals
+  const aiu  = d.aiu
+  const blkW = 78
+  const tx2  = W - mg - blkW
+  const rowH = 7
+
+  // Micro-etiqueta
+  doc.setFontSize(5.8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...SUB)
+  doc.text('RESUMEN FINANCIERO', tx2, y - 1)
 
   const totLines = [
-    [`Subtotal`,                           T.bruto],
-    [`Administración ${aiu.admin       || 10}%`, T.admV],
-    [`Imprevistos ${aiu.imprevistos    || 3}%`,  T.impV],
-    [`Utilidad ${aiu.utilidad          || 10}%`, T.utiV],
-    [`IVA ${d.iva                      || 19}%`, T.ivaV],
+    { lbl: 'Subtotal actividades',                    val: T.bruto },
+    { lbl: `Administración ${aiu.admin       || 10}%`, val: T.admV  },
+    { lbl: `Imprevistos ${aiu.imprevistos    || 3}%`,  val: T.impV  },
+    { lbl: `Utilidad ${aiu.utilidad          || 10}%`, val: T.utiV  },
+    { lbl: `IVA ${d.iva || 19}% sobre AIU`,            val: T.ivaV  },
   ]
 
-  doc.setFontSize(7); doc.setFont('helvetica', 'normal')
-  totLines.forEach(([lbl, val], i) => {
+  totLines.forEach(({ lbl, val }, i) => {
     const ry = y + i * rowH
-    doc.setFillColor(i % 2 === 0 ? 248 : 243, i % 2 === 0 ? 250 : 246, i % 2 === 0 ? 253 : 252)
-    doc.rect(tx, ry, blkW, rowH, 'F')
-    doc.setTextColor(100, 100, 100)
-    doc.text(lbl,         tx + lbW - 2,  ry + 4.4, { align: 'right' })
-    doc.setTextColor(25, 25, 25)
-    doc.text(fmtCOP(val), tx + blkW - 2, ry + 4.4, { align: 'right' })
+    doc.setFillColor(i % 2 === 0 ? 248 : 243, i % 2 === 0 ? 250 : 247, i % 2 === 0 ? 253 : 251)
+    doc.rect(tx2, ry, blkW, rowH, 'F')
+    doc.setDrawColor(...GR_M); doc.setLineWidth(0.1)
+    doc.line(tx2, ry + rowH, tx2 + blkW, ry + rowH)
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...SUB)
+    doc.text(lbl, tx2 + 3, ry + 4.8)
+    doc.setTextColor(...TX); doc.setFont('helvetica', 'bold')
+    doc.text(fmtCOP(val), tx2 + blkW - 3, ry + 4.8, { align: 'right' })
   })
 
-  // TOTAL FINAL
-  const totalY = y + totLines.length * rowH
-  const totalH = 9
-  doc.setFillColor(...VERDE)
-  doc.rect(tx, totalY, blkW, totalH, 'F')
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-  doc.text('TOTAL FINAL',    tx + 3,        totalY + 6.2)
-  doc.text(fmtCOP(T.total),  tx + blkW - 2, totalY + 6.2, { align: 'right' })
+  // Fila TOTAL FINAL
+  const tyF  = y + totLines.length * rowH
+  const totH = 10
+  doc.setFillColor(...VE)
+  doc.rect(tx2, tyF, blkW, totH, 'F')
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...WHITE)
+  doc.text('TOTAL FINAL',   tx2 + 3,         tyF + 6.8)
+  doc.text(fmtCOP(T.total), tx2 + blkW - 3,  tyF + 6.8, { align: 'right' })
 
-  // Observaciones (a la izquierda del bloque de totales)
+  // Borde exterior bloque totales
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.2)
+  doc.rect(tx2, y, blkW, totLines.length * rowH)
+
+  // Observaciones (columna izquierda, junto a totales)
   if (d.observaciones) {
-    const obsW = tx - mg - 4
-    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(100, 100, 100)
-    doc.text('Observaciones:', mg, y + 4)
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 30)
+    const obsW = tx2 - mg - 5
+    doc.setFontSize(5.8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...SUB)
+    doc.text('OBSERVACIONES', mg, y - 1)
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...TX)
     const lines = doc.splitTextToSize(d.observaciones, obsW)
-    doc.text(lines, mg, y + 9)
+    doc.text(lines, mg, y + 5)
   }
 
-  // ── 6. FIRMAS ─────────────────────────────────────────────────────────────
-  let fy = totalY + totalH + 14
-  if (fy > 264) { doc.addPage(); fy = 18 }
+  // ── G. FIRMAS ─────────────────────────────────────────────────────────────
+  let fy = tyF + totH + 14
+  if (fy > 262) { doc.addPage(); fy = 20 }
 
-  const lineW = 72
-  const lx    = mg + 8
-  const rx    = W - mg - 8 - lineW
+  const sigW  = 72
+  const sigH  = 18
+  const lxS   = mg + 6
+  const rxS   = W - mg - 6 - sigW
 
-  doc.setDrawColor(...AZUL); doc.setLineWidth(0.4)
-  doc.line(lx,  fy, lx + lineW,  fy)
-  doc.line(rx,  fy, rx + lineW,  fy)
+  // Cajas de firma (fondo muy sutil)
+  doc.setFillColor(...GR_L)
+  doc.rect(lxS, fy,  sigW, sigH, 'F')
+  doc.rect(rxS, fy,  sigW, sigH, 'F')
 
-  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...AZUL)
-  doc.text('CONTRATISTA',     lx + lineW / 2, fy + 4.5, { align: 'center' })
-  doc.text('DIRECTOR DE OBRA', rx + lineW / 2, fy + 4.5, { align: 'center' })
+  // Borde alrededor de las cajas
+  doc.setDrawColor(...GR_M); doc.setLineWidth(0.2)
+  doc.rect(lxS, fy, sigW, sigH)
+  doc.rect(rxS, fy, sigW, sigH)
 
-  doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(70, 70, 70)
-  doc.text(d.contratista || '—', lx + lineW / 2, fy + 9,  { align: 'center' })
-  doc.text(d.director    || '—', rx + lineW / 2, fy + 9,  { align: 'center' })
+  // Línea de firma (navy)
+  doc.setDrawColor(...N); doc.setLineWidth(0.5)
+  doc.line(lxS + 6, fy + 12, lxS + sigW - 6, fy + 12)
+  doc.line(rxS + 6, fy + 12, rxS + sigW - 6, fy + 12)
 
-  // ── FOOTER ────────────────────────────────────────────────────────────────
+  // Nombre (encima de la línea, pequeño)
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...SUB)
+  doc.text(d.contratista || '—', lxS + sigW / 2, fy + 5,  { align: 'center', maxWidth: sigW - 12 })
+  doc.text(d.director    || '—', rxS + sigW / 2, fy + 5,  { align: 'center', maxWidth: sigW - 12 })
+
+  // Rol (debajo de la línea, bold navy)
+  doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...N)
+  doc.text('CONTRATISTA',      lxS + sigW / 2, fy + 16, { align: 'center' })
+  doc.text('DIRECTOR DE OBRA', rxS + sigW / 2, fy + 16, { align: 'center' })
+
+  // ── H. FOOTER (banda navy sólida) ─────────────────────────────────────────
   const pages = doc.internal.getNumberOfPages()
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p)
     const pH = doc.internal.pageSize.getHeight()
-    doc.setDrawColor(200, 212, 228); doc.setLineWidth(0.2)
-    doc.line(mg, pH - 10, W - mg, pH - 10)
-    doc.setFontSize(6.5); doc.setTextColor(160, 160, 160); doc.setFont('helvetica', 'normal')
-    doc.text(`Acta No. ${d.numero}  ·  ${d.contratista || ''}  ·  ${d.cliente || ''}`, mg, pH - 6)
-    doc.text(`${p} / ${pages}`, W - mg, pH - 6, { align: 'right' })
+    doc.setFillColor(...N)
+    doc.rect(0, pH - 9, W, 9, 'F')
+    // Acento izquierdo (mismo que letterhead)
+    doc.setFillColor(...N_MED)
+    doc.rect(0, pH - 9, 4, 9, 'F')
+    doc.setFontSize(6.5); doc.setTextColor(...WHITE); doc.setFont('helvetica', 'normal')
+    doc.text(
+      `Acta No. ${d.numero}  ·  ${d.contratista || ''}  ·  ${d.cliente || ''}`,
+      8, pH - 3.5
+    )
+    doc.text(`Pág. ${p} / ${pages}`, W - mg, pH - 3.5, { align: 'right' })
   }
 
   doc.save(filename(d, 'pdf'))
