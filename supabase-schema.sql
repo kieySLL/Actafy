@@ -62,11 +62,15 @@ create table if not exists public.actas (
   tel_cl      text,
   observaciones text,
   grupos      jsonb default '[]',
+  fotos       jsonb default '[]',
   total_bruto numeric default 0,
   total_final numeric default 0,
   created_at  timestamptz default now(),
   updated_at  timestamptz default now()
 );
+
+-- Columna fotos (si ya corriste el schema anterior, ejecuta esta línea aparte)
+-- alter table public.actas add column if not exists fotos jsonb default '[]';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 --  Row Level Security (RLS) — cada usuario solo ve sus datos

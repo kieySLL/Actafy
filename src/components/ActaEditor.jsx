@@ -3,17 +3,21 @@ import { useAuth } from './AuthContext'
 import { Field } from './AuthScreen'
 import { fmtCOP, calcTotals, emptyAct, emptyGrupo, today, avatarColor, initials } from '../lib/helpers'
 import { exportPDF, exportWord, exportExcel } from '../lib/exporters'
+import { saveActa } from '../lib/actasDB'
 
-export default function ActaEditor({ onSettings, onLogout }) {
+export default function ActaEditor({ onSettings, onLogout, onHistorial, onNew, initialForm, actaId }) {
   const { user, username } = useAuth()
   const [tab, setTab] = useState(0)
   const [modal, setModal] = useState(null) // null | 'cliente' | { type:'catalogo', gi }
   const [catalogSearch, setCatalogSearch] = useState('')
   const [exporting, setExporting] = useState(null)
   const [exportMsg, setExportMsg] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState(null)
+  const [currentActaId, setCurrentActaId] = useState(actaId || null)
   const fotoRef = useRef()
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => initialForm ? { ...initialForm } : {
     numero: '1', fecha: today(), periodo: '', contrato: '',
     obra: '', ubicacion: '',
     empresa_c: '', nit_cl: '', director: '', cargo: 'Director de Obra', tel_cl: '',
@@ -112,10 +116,27 @@ export default function ActaEditor({ onSettings, onLogout }) {
       else if (fmt === 'Word') await exportWord(d)
       else exportExcel(d)
       setExportMsg({ type: 'ok', text: `${fmt} generado y descargado correctamente` })
+      // auto-guardar al exportar
+      const newId = await saveActa(username, form, T, currentActaId)
+      if (!currentActaId) setCurrentActaId(newId)
     } catch (e) {
       setExportMsg({ type: 'err', text: `Error al generar ${fmt}: ${e.message}` })
     }
     setExporting(null)
+  }
+
+  const doSave = async () => {
+    setSaving(true)
+    setSaveMsg(null)
+    try {
+      const newId = await saveActa(username, form, T, currentActaId)
+      setCurrentActaId(newId)
+      setSaveMsg({ type: 'ok', text: 'Acta guardada' })
+      setTimeout(() => setSaveMsg(null), 3000)
+    } catch (e) {
+      setSaveMsg({ type: 'err', text: 'Error al guardar: ' + e.message })
+    }
+    setSaving(false)
   }
 
   // ── Render tabs ────────────────────────────────────────────────────────────
@@ -143,9 +164,22 @@ export default function ActaEditor({ onSettings, onLogout }) {
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10 }}>Total</p>
           <p style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{T.total > 0 ? fmtCOP(T.total) : '—'}</p>
         </div>
+        <button onClick={onHistorial} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>📋 Historial</button>
+        <button onClick={doSave} disabled={saving} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>
+          {saving ? '…' : '💾 Guardar'}
+        </button>
+        {currentActaId && onNew && (
+          <button onClick={onNew} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>+ Nueva</button>
+        )}
         <button onClick={onSettings} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>⚙ Perfil</button>
         <button onClick={onLogout} style={{ borderColor: 'rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.65)', fontSize: 12, padding: '6px 12px' }}>Salir</button>
       </div>
+
+      {saveMsg && (
+        <div className={`alert alert-${saveMsg.type}`} style={{ margin: '8px 0 0', borderRadius: 'var(--radio)' }}>
+          {saveMsg.text}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="tab-bar">

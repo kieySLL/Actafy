@@ -100,7 +100,7 @@ function Logo() {
           <circle cx="12" cy="13" r="2" fill="#1B3A5C"/>
         </svg>
       </div>
-      <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--azul)' }}>Actas de Obra</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--azul)' }}>Actafy</h1>
       <p style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>Plataforma para contratistas · Colombia</p>
     </div>
   )
