@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import * as XLSX from 'xlsx'
 import { useAuth } from './AuthContext'
 import { Field } from './AuthScreen'
 import { fmtCOP, avatarColor, initials } from '../lib/helpers'
@@ -184,29 +185,28 @@ function CatalogoTab() {
 
   const del = (i) => updateUser({ catalogo: user.catalogo.filter((_, j) => j !== i) })
 
-  const importCSV = (e) => {
+  const importExcel = (e) => {
     const file = e.target.files[0]; if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const lines = ev.target.result.split('\n').filter(l => l.trim())
-      if (!lines.length) return
-      const header = lines[0].toLowerCase().split(',').map(h => h.trim().replace(/"/g, ''))
+      const wb = XLSX.read(ev.target.result, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+      if (rows.length < 2) return
+      const header = rows[0].map(h => String(h).toLowerCase().trim())
       const iCod = header.findIndex(h => h.includes('cod') || h === 'item')
       const iAct = header.findIndex(h => h.includes('activ') || h.includes('desc'))
       const iUnd = header.findIndex(h => h.includes('und') || h.includes('unit'))
       const iVal = header.findIndex(h => h.includes('val') || h.includes('prec'))
-      const items = lines.slice(1).map(l => {
-        const cols = l.split(',').map(c => c.trim().replace(/"/g, ''))
-        return {
-          codigo:   iCod >= 0 ? cols[iCod] || '' : '',
-          actividad: iAct >= 0 ? cols[iAct] || '' : cols[1] || '',
-          und:      iUnd >= 0 ? cols[iUnd] || 'UND' : 'UND',
-          valor:    parseFloat(iVal >= 0 ? cols[iVal] : cols[3]) || 0,
-        }
-      }).filter(it => it.actividad)
+      const items = rows.slice(1).map(row => ({
+        codigo:    iCod >= 0 ? String(row[iCod] ?? '').trim() : String(row[0] ?? '').trim(),
+        actividad: iAct >= 0 ? String(row[iAct] ?? '').trim() : String(row[1] ?? '').trim(),
+        und:       iUnd >= 0 ? String(row[iUnd] ?? '').trim() || 'UND' : String(row[2] ?? '').trim() || 'UND',
+        valor:     parseFloat(iVal >= 0 ? row[iVal] : row[3]) || 0,
+      })).filter(it => it.actividad)
       updateUser({ catalogo: [...(user.catalogo || []), ...items] })
     }
-    reader.readAsText(file)
+    reader.readAsArrayBuffer(file)
     e.target.value = ''
   }
 
@@ -218,10 +218,10 @@ function CatalogoTab() {
         <span style={{ fontSize: 13, fontWeight: 600 }}>{cat.length} actividad(es)</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <label style={{ cursor: 'pointer' }}>
-            <span style={{ border: '1px solid var(--azul2)', color: 'var(--azul2)', background: 'var(--azul-bg)', padding: '5px 12px', borderRadius: 'var(--radio)', fontSize: 12, fontWeight: 600 }}>
-              Importar CSV
+            <span style={{ border: '1px solid var(--azul2)', color: 'var(--azul2)', background: 'var(--azul-bg)', padding: '5px 12px', borderRadius: 'var(--radio)', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              📥 Importar Excel
             </span>
-            <input type="file" accept=".csv" onChange={importCSV} style={{ display: 'none' }} />
+            <input type="file" accept=".xlsx,.xls" onChange={importExcel} style={{ display: 'none' }} />
           </label>
           <button className="btn-sm" onClick={() => setShowForm(s => !s)}>{showForm ? 'Cancelar' : '+ Agregar'}</button>
         </div>
@@ -252,17 +252,17 @@ function CatalogoTab() {
       {cat.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--sub)' }}>
           <p style={{ marginBottom: 6 }}>Sin actividades en el catálogo.</p>
-          <p style={{ fontSize: 12 }}>Importa un CSV con columnas: <code style={{ background: 'var(--gris)', padding: '1px 5px', borderRadius: 3 }}>codigo, actividad, und, valor</code></p>
+          <p style={{ fontSize: 12 }}>Importa un Excel (.xlsx) con columnas: <code style={{ background: 'var(--gris)', padding: '1px 5px', borderRadius: 3 }}>Codigo · Actividad · Und · Valor</code></p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table className="act-table" style={{ fontSize: 12 }}>
             <thead>
               <tr>
-                <th style={{ width: 60 }}>Código</th>
-                <th className="left">Descripción</th>
-                <th style={{ width: 50 }}>Und</th>
-                <th style={{ width: 100 }}>Valor</th>
+                <th style={{ width: 70 }}>Código</th>
+                <th className="left">Actividad</th>
+                <th style={{ width: 60 }}>Und</th>
+                <th style={{ width: 110 }}>Valor</th>
                 <th style={{ width: 40 }}></th>
               </tr>
             </thead>
@@ -270,8 +270,8 @@ function CatalogoTab() {
               {cat.map((c, i) => (
                 <tr key={i}>
                   <td style={{ textAlign: 'center' }}>{c.codigo ? <span className="tag tag-blue">{c.codigo}</span> : '—'}</td>
-                  <td>{c.actividad}</td>
-                  <td style={{ textAlign: 'center', color: 'var(--sub)' }}>{c.und}</td>
+                  <td style={{ color: '#1a1a1a' }}>{c.actividad}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--sub)', fontWeight: 500 }}>{c.und || '—'}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--verde)' }}>{fmtCOP(c.valor)}</td>
                   <td style={{ textAlign: 'center' }}>
                     <button className="btn-danger btn-sm" onClick={() => del(i)}>×</button>
