@@ -65,12 +65,14 @@ create table if not exists public.actas (
   fotos       jsonb default '[]',
   total_bruto numeric default 0,
   total_final numeric default 0,
+  estado      text default 'Borrador', -- Borrador | Generada | Firmada | Pagada
   created_at  timestamptz default now(),
   updated_at  timestamptz default now()
 );
 
--- Columna fotos (si ya corriste el schema anterior, ejecuta esta línea aparte)
--- alter table public.actas add column if not exists fotos jsonb default '[]';
+-- Si ya corriste el schema anterior, ejecuta estas líneas para migrar:
+-- alter table public.actas add column if not exists fotos  jsonb default '[]';
+-- alter table public.actas add column if not exists estado text default 'Borrador';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 --  Row Level Security (RLS) — cada usuario solo ve sus datos

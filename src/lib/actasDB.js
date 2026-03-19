@@ -46,7 +46,7 @@ export async function saveActa(userId, form, totals, existingId = null) {
       return data.id
     } else {
       const { data, error } = await supabase
-        .from('actas').insert({ ...record, user_id: userId }).select('id').single()
+        .from('actas').insert({ ...record, user_id: userId, estado: 'Borrador' }).select('id').single()
       if (error) throw error
       return data.id
     }
@@ -61,9 +61,24 @@ export async function saveActa(userId, form, totals, existingId = null) {
     return existingId
   } else {
     const id = crypto.randomUUID()
-    actas.unshift({ id, user_id: userId, ...record, created_at: new Date().toISOString() })
+    actas.unshift({ id, user_id: userId, ...record, estado: 'Borrador', created_at: new Date().toISOString() })
     saveLocal(actas)
     return id
+  }
+}
+
+export async function updateEstado(id, estado) {
+  if (await hasSession()) {
+    const { error } = await supabase
+      .from('actas').update({ estado, updated_at: new Date().toISOString() }).eq('id', id)
+    if (error) throw error
+    return
+  }
+  const actas = loadLocal()
+  const idx = actas.findIndex(a => a.id === id)
+  if (idx >= 0) {
+    actas[idx] = { ...actas[idx], estado, updated_at: new Date().toISOString() }
+    saveLocal(actas)
   }
 }
 
@@ -71,15 +86,15 @@ export async function loadActas(userId) {
   if (await hasSession()) {
     const { data, error } = await supabase
       .from('actas')
-      .select('id, numero, fecha, obra, empresa_c, total_final, updated_at')
+      .select('id, numero, fecha, obra, empresa_c, total_final, estado, updated_at')
       .order('updated_at', { ascending: false })
     if (error) throw error
     return data
   }
   return loadLocal()
     .filter(a => a.user_id === userId)
-    .map(({ id, numero, fecha, obra, empresa_c, total_final, updated_at }) =>
-      ({ id, numero, fecha, obra, empresa_c, total_final, updated_at })
+    .map(({ id, numero, fecha, obra, empresa_c, total_final, estado, updated_at }) =>
+      ({ id, numero, fecha, obra, empresa_c, total_final, estado: estado || 'Borrador', updated_at })
     )
 }
 

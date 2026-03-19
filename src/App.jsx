@@ -7,31 +7,43 @@ import HistorialActas from './components/HistorialActas'
 
 function AppInner() {
   const { user, logout } = useAuth()
-  const [view, setView] = useState('acta') // 'acta' | 'settings' | 'historial'
-  const [editActa, setEditActa] = useState(null) // null | { id, form }
+  const [view, setView] = useState('historial') // historial es la pantalla principal
+  const [editActa, setEditActa] = useState(null) // null = nueva | { id, form } = existente
 
   if (!user) return <AuthScreen />
 
-  const handleEdit = (actaData) => {
-    setEditActa(actaData)
-    setView('acta')
-  }
+  const goHistorial = () => setView('historial')
 
   const handleNew = () => {
     setEditActa(null)
+    setView('editor')
   }
 
-  if (view === 'settings')   return <Settings onBack={() => setView('acta')} />
-  if (view === 'historial')  return <HistorialActas onBack={() => setView('acta')} onEdit={handleEdit} />
+  const handleEdit = (actaData) => {
+    setEditActa(actaData)
+    setView('editor')
+  }
 
-  return (
+  if (view === 'settings') return <Settings onBack={goHistorial} />
+
+  if (view === 'editor') return (
     <ActaEditor
       key={editActa?.id || 'new'}
       initialForm={editActa?.form}
       actaId={editActa?.id}
+      onBack={goHistorial}
       onNew={handleNew}
       onSettings={() => setView('settings')}
-      onHistorial={() => setView('historial')}
+      onLogout={logout}
+    />
+  )
+
+  // view === 'historial' (default)
+  return (
+    <HistorialActas
+      onNew={handleNew}
+      onEdit={handleEdit}
+      onSettings={() => setView('settings')}
       onLogout={logout}
     />
   )

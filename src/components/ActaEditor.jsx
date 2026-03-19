@@ -5,7 +5,7 @@ import { fmtCOP, calcTotals, emptyAct, emptyGrupo, today, avatarColor, initials 
 import { exportPDF, exportWord, exportExcel } from '../lib/exporters'
 import { saveActa } from '../lib/actasDB'
 
-export default function ActaEditor({ onSettings, onLogout, onHistorial, onNew, initialForm, actaId }) {
+export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initialForm, actaId }) {
   const { user, username } = useAuth()
   const [tab, setTab] = useState(0)
   const [modal, setModal] = useState(null) // null | 'cliente' | { type:'catalogo', gi }
@@ -164,7 +164,7 @@ export default function ActaEditor({ onSettings, onLogout, onHistorial, onNew, i
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10 }}>Total</p>
           <p style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{T.total > 0 ? fmtCOP(T.total) : '—'}</p>
         </div>
-        <button onClick={onHistorial} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>📋 Historial</button>
+        <button onClick={onBack} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>← Historial</button>
         <button onClick={doSave} disabled={saving} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>
           {saving ? '…' : '💾 Guardar'}
         </button>
