@@ -23,22 +23,38 @@ export function AuthProvider({ children }) {
   // ── Supabase auth listener ─────────────────────────────────────────────────
   useEffect(() => {
     if (!supabase) return
+
+    // Seguridad: si onAuthStateChange nunca dispara (red caída, proyecto pausado,
+    // credenciales inválidas) forzamos loading=false después de 8 segundos
+    const safetyTimer = setTimeout(() => setLoading(false), 8000)
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setPasswordRecovery(true)
-        setLoading(false)
-        return
-      }
-      if (session?.user) {
-        setSupaUser(session.user)
-        await fetchProfile(session.user.id)
-      } else {
+      clearTimeout(safetyTimer)
+      try {
+        if (event === 'PASSWORD_RECOVERY') {
+          setPasswordRecovery(true)
+          return
+        }
+        if (session?.user) {
+          setSupaUser(session.user)
+          await fetchProfile(session.user.id)
+        } else {
+          setSupaUser(null)
+          setProfile(null)
+        }
+      } catch (err) {
+        console.error('Error en auth state change:', err)
         setSupaUser(null)
         setProfile(null)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     })
-    return () => subscription.unsubscribe()
+
+    return () => {
+      clearTimeout(safetyTimer)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const fetchProfile = async (uid) => {
