@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { useAuth } from './AuthContext'
 import { Field } from './AuthScreen'
 import { fmtCOP, avatarColor, initials } from '../lib/helpers'
@@ -306,11 +306,15 @@ function CatalogoTab() {
 
     reader.onload = async (ev) => {
       try {
-        // Conversión correcta: ArrayBuffer → Uint8Array
-        const data = new Uint8Array(ev.target.result)
-        const wb   = XLSX.read(data, { type: 'array' })
-        const ws   = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+        // Leer con ExcelJS (ya instalado, reemplaza xlsx)
+        const wb = new ExcelJS.Workbook()
+        await wb.xlsx.load(ev.target.result)
+        const ws   = wb.worksheets[0]
+        const rows = []
+        ws.eachRow((row) => {
+          // row.values es 1-based, slice(1) lo convierte a 0-based
+          rows.push(row.values.slice(1).map(v => (v == null ? '' : String(v))))
+        })
 
         if (rows.length < 2) {
           setErr('El archivo está vacío o no tiene datos')
