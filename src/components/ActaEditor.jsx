@@ -16,7 +16,6 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
   // Auto-save state: null | 'pending' | 'saving' | 'saved' | 'error'
   const [saveStatus, setSaveStatus] = useState(null)
   const [currentActaId, setCurrentActaId] = useState(actaId || null)
-  const fotoRef    = useRef()
   const actaIdRef  = useRef(actaId || null)   // ref para evitar stale closure en auto-save
   const timerRef   = useRef(null)
   const mountedRef = useRef(false)            // skip first render
@@ -104,27 +103,6 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
     setForm(f => ({ ...f, empresa_c: c.nombre || '', nit_cl: c.nit || '', director: c.director || '', cargo: c.cargo || 'Director de Obra', tel_cl: c.tel || '' }))
     setModal(null)
   }
-
-  // ── Fotos ──────────────────────────────────────────────────────────────────
-  const MAX_FOTO_MB = 2
-  const addFotos = (e) => {
-    const rechazadas = []
-    Array.from(e.target.files).forEach(file => {
-      if (file.size > MAX_FOTO_MB * 1024 * 1024) {
-        rechazadas.push(file.name)
-        return
-      }
-      const r = new FileReader()
-      r.onload = ev => setForm(f => ({ ...f, fotos: [...f.fotos, { data: ev.target.result, cap: file.name.replace(/\.[^.]+$/, '') }] }))
-      r.readAsDataURL(file)
-    })
-    if (rechazadas.length) {
-      setExportMsg({ type: 'warn', text: `${rechazadas.length} foto(s) superan ${MAX_FOTO_MB}MB y no fueron agregadas: ${rechazadas.join(', ')}` })
-    }
-    e.target.value = ''  // reset input para poder subir el mismo archivo de nuevo
-  }
-  const removeFoto = (i) => setForm(f => ({ ...f, fotos: f.fotos.filter((_, j) => j !== i) }))
-  const setFotoCap = (i, v) => setForm(f => ({ ...f, fotos: f.fotos.map((x, j) => j !== i ? x : { ...x, cap: v }) }))
 
   // ── Export data builder ────────────────────────────────────────────────────
   const buildExportData = () => ({
