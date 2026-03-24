@@ -112,6 +112,18 @@ export async function loadActaById(id) {
   return loadLocal().find(a => a.id === id) || null
 }
 
+export async function countActas(userId) {
+  if (await hasSession()) {
+    const { count, error } = await supabase
+      .from('actas')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    if (error) throw new Error(error.message)
+    return count ?? 0
+  }
+  return loadLocal().filter(a => a.user_id === userId).length
+}
+
 export async function deleteActa(id) {
   if (await hasSession()) {
     const { error } = await supabase.from('actas').delete().eq('id', id)

@@ -6,11 +6,56 @@ import Settings from './components/Settings'
 import HistorialActas from './components/HistorialActas'
 import ActafyLogo from './components/ActafyLogo'
 import LandingPage from './components/LandingPage'
+import { countActas } from './lib/actasDB'
+
+const PLAN_LIMIT = { gratis: 5 }   // pro y empresarial = sin límite
+
+function UpgradeModal({ used, limit, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 9999, padding: 20,
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 16, padding: '36px 32px',
+        maxWidth: 420, width: '100%', textAlign: 'center',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+        <h2 style={{ margin: '0 0 8px', color: '#17365D', fontSize: 22 }}>
+          Límite del plan Gratis
+        </h2>
+        <p style={{ color: '#555', margin: '0 0 20px', lineHeight: 1.6 }}>
+          Has usado <strong>{used} de {limit} actas</strong> disponibles en el plan Gratis.
+          Actualiza a <strong>Pro</strong> para crear actas ilimitadas.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button onClick={onClose} style={{
+            padding: '10px 22px', borderRadius: 8, border: '1px solid #ddd',
+            background: '#f5f5f5', cursor: 'pointer', fontWeight: 600,
+          }}>
+            Cerrar
+          </button>
+          <button onClick={() => { window.location.href = '/#precios'; onClose() }} style={{
+            padding: '10px 22px', borderRadius: 8, border: 'none',
+            background: 'linear-gradient(135deg,#1e5aab,#42ABDE)',
+            color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15,
+          }}>
+            Ver planes Pro →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function AppInner() {
-  const { user, logout, passwordRecovery, loading } = useAuth()
-  const [view, setView]       = useState('historial')
+  const { user, userId, logout, passwordRecovery, loading } = useAuth()
+  const [view, setView]         = useState('historial')
   const [editActa, setEditActa] = useState(null)
+  const [showUpgrade, setShowUpgrade] = useState(false)
+  const [actasUsed, setActasUsed]     = useState(0)
   // authMode: null = landing, 'login' | 'register' = formulario
   const [authMode, setAuthMode] = useState(null)
 
@@ -49,7 +94,19 @@ function AppInner() {
 
   const goHistorial = () => setView('historial')
 
-  const handleNew = () => {
+  const handleNew = async () => {
+    const plan  = user?.plan || 'gratis'
+    const limit = PLAN_LIMIT[plan]          // undefined = sin límite
+    if (limit !== undefined) {
+      try {
+        const count = await countActas(userId)
+        if (count >= limit) {
+          setActasUsed(count)
+          setShowUpgrade(true)
+          return
+        }
+      } catch { /* si falla el conteo, dejamos pasar */ }
+    }
     setEditActa(null)
     setView('editor')
   }
@@ -73,13 +130,27 @@ function AppInner() {
     />
   )
 
+  const plan  = user?.plan || 'gratis'
+  const limit = PLAN_LIMIT[plan]
+
   return (
-    <HistorialActas
-      onNew={handleNew}
-      onEdit={handleEdit}
-      onSettings={() => setView('settings')}
-      onLogout={logout}
-    />
+    <>
+      {showUpgrade && (
+        <UpgradeModal
+          used={actasUsed}
+          limit={PLAN_LIMIT.gratis}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      <HistorialActas
+        onNew={handleNew}
+        onEdit={handleEdit}
+        onSettings={() => setView('settings')}
+        onLogout={logout}
+        planLimit={limit}
+        userId={userId}
+      />
+    </>
   )
 }
 

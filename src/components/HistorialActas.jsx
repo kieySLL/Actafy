@@ -13,7 +13,7 @@ const ESTADO_STYLE = {
   Pagada:   { bg: '#EAF3DE', color: '#1A6B35', border: '#97C459' },
 }
 
-export default function HistorialActas({ onNew, onEdit, onSettings, onLogout }) {
+export default function HistorialActas({ onNew, onEdit, onSettings, onLogout, planLimit }) {
   const { user, userId } = useAuth()
   const [actas, setActas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -119,6 +119,35 @@ export default function HistorialActas({ onNew, onEdit, onSettings, onLogout }) 
         <button onClick={onSettings} style={{ borderColor: 'rgba(255,255,255,0.35)', color: 'rgba(255,255,255,0.85)', fontSize: 12, padding: '6px 12px' }}>⚙ Perfil</button>
         <button onClick={onLogout}   style={{ borderColor: 'rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.65)', fontSize: 12, padding: '6px 12px' }}>Salir</button>
       </div>
+
+      {/* Contador de plan para usuarios gratuitos */}
+      {planLimit !== undefined && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: actas.length >= planLimit ? '#FEF3E2' : '#EBF3FB',
+          border: `1px solid ${actas.length >= planLimit ? '#F5CC85' : '#85B7EB'}`,
+          borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+          fontSize: 13,
+        }}>
+          <span style={{ color: actas.length >= planLimit ? '#9A5A0A' : '#1e5aab' }}>
+            {actas.length >= planLimit
+              ? `⚠️ Límite alcanzado — ${actas.length}/${planLimit} actas usadas en plan Gratis`
+              : `📄 ${actas.length}/${planLimit} actas usadas · Plan Gratis`}
+          </span>
+          {actas.length >= planLimit && (
+            <button
+              onClick={onNew}
+              style={{
+                background: 'linear-gradient(135deg,#1e5aab,#42ABDE)',
+                color: '#fff', border: 'none', borderRadius: 7,
+                padding: '6px 14px', fontWeight: 700, cursor: 'pointer', fontSize: 12,
+              }}
+            >
+              Actualizar a Pro →
+            </button>
+          )}
+        </div>
+      )}
 
       {err && <div className="alert alert-err" style={{ marginBottom: 14 }}>{err}</div>}
 

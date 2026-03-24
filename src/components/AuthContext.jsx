@@ -81,7 +81,8 @@ export function AuthProvider({ children }) {
         imprevistos: data?.aiu_imp   ?? 3,
         utilidad:    data?.aiu_util  ?? 10,
       },
-      iva: data?.iva ?? 19,
+      iva:  data?.iva  ?? 19,
+      plan: data?.plan || 'gratis',
     })
   }
 

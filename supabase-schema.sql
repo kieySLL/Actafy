@@ -77,6 +77,7 @@ create table if not exists public.actas (
 -- alter table public.actas    add column if not exists estado   text  default 'Borrador';
 -- alter table public.perfiles add column if not exists clientes jsonb default '[]';
 -- alter table public.perfiles add column if not exists catalogo jsonb default '[]';
+-- alter table public.perfiles add column if not exists plan    text  default 'gratis';
 
 -- ─────────────────────────────────────────────────────────────────────────────
 --  Row Level Security (RLS) — cada usuario solo ve sus datos
