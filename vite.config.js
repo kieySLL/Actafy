@@ -8,9 +8,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'pdf-engine':  ['jspdf', 'jspdf-autotable'],
-          'word-engine': ['docx', 'file-saver'],
-          'excel-engine':['xlsx'],
+          'pdf-engine':   ['jspdf', 'jspdf-autotable'],
+          'word-engine':  ['docx', 'file-saver'],
+          'excel-engine': ['exceljs'],
         },
       },
     },
