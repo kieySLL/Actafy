@@ -93,17 +93,8 @@ export async function exportPDF(d) {
   // ── B. LÍNEA ACTIVIDAD ─────────────────────────────────────────────────────
   let y = hdrY + hdrH + 5
   doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK)
-  const actividadTxt = `ACTIVIDAD: ${(d.tipo || 'OBRA CIVIL').toUpperCase()}`
-  doc.text(actividadTxt, mg, y)
-
-  // Obra / proyecto (si tiene)
-  if (d.obra) {
-    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...SUB)
-    doc.text(d.obra, mg, y + 5)
-    y += 8
-  } else {
-    y += 5
-  }
+  doc.text(`ACTIVIDAD: ${(d.tipo || 'OBRA CIVIL').toUpperCase()}`, mg, y)
+  y += 6
 
   // ── C. TABLA DE ACTIVIDADES ────────────────────────────────────────────────
   let groupNum = 0
@@ -308,8 +299,7 @@ export async function exportWord(d) {
   // ── Actividad ────────────────────────────────────────────────────────────
   const actividadPar = new Paragraph({
     spacing: { before: 120, after: 80 },
-    children: [new TextRun({ text: `ACTIVIDAD: ${(d.tipo||'OBRA CIVIL').toUpperCase()}`, bold: true, size: 18, font: 'Arial', color: '141E32' }),
-               ...(d.obra ? [new TextRun({ text: `   ${d.obra}`, size: 16, font: 'Arial' })] : [])],
+    children: [new TextRun({ text: `ACTIVIDAD: ${(d.tipo||'OBRA CIVIL').toUpperCase()}`, bold: true, size: 18, font: 'Arial', color: '141E32' })],
   })
 
   // ── Tabla actividades ────────────────────────────────────────────────────
