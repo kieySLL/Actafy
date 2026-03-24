@@ -621,31 +621,38 @@ export async function exportExcel(d) {
   })
 
   // ── E. FIRMAS ────────────────────────────────────────────────────────────────
+  // Estructura: [banda] → espacio vacío → [LÍNEA] → nombre → etiqueta → [banda]
   ws.addRow([])   // espacio
 
-  // Banda superior firmas
+  // Banda superior
   addBand()
-  const sbtRn = ws.rowCount
-  // (addBand ya creó la fila; asignamos altura correcta)
-  ws.getRow(sbtRn).height = 8
+  ws.getRow(ws.rowCount).height = 8
 
-  // Fila con los nombres (borde inferior = línea de firma)
-  const sigRow = ws.addRow(['', '', '', '', '', ''])
-  const sigRn  = ws.rowCount
-  sigRow.height = 30
-  ws.mergeCells(`A${sigRn}:C${sigRn}`)   // nombre izquierdo
-  ws.mergeCells(`D${sigRn}:F${sigRn}`)   // nombre derecho
+  // Fila vacía: espacio para escribir la firma (encima de la línea)
+  const spaceRow = ws.addRow(['', '', '', '', '', ''])
+  const spRn = ws.rowCount
+  spaceRow.height = 28
+  ws.mergeCells(`A${spRn}:C${spRn}`)
+  ws.mergeCells(`D${spRn}:F${spRn}`)
+  // sin borde ni texto — solo espacio
 
-  const sA = ws.getCell(`A${sigRn}`)
-  const sD = ws.getCell(`D${sigRn}`)
-  sA.value     = d.director    || '—'
-  sD.value     = d.contratista || '—'
-  sA.font      = fnt(true, DARK, 9)
-  sD.font      = fnt(true, DARK, 9)
-  sA.alignment = aln('center', 'bottom')
-  sD.alignment = aln('center', 'bottom')
-  sA.border    = { bottom: bdM() }
-  sD.border    = { bottom: bdM() }
+  // Fila de nombres: borde SUPERIOR = línea de firma; nombre centrado debajo
+  const nameRow = ws.addRow(['', '', '', '', '', ''])
+  const nameRn  = ws.rowCount
+  nameRow.height = 16
+  ws.mergeCells(`A${nameRn}:C${nameRn}`)
+  ws.mergeCells(`D${nameRn}:F${nameRn}`)
+
+  const nA = ws.getCell(`A${nameRn}`)
+  const nD = ws.getCell(`D${nameRn}`)
+  nA.value     = d.director    || '—'
+  nD.value     = d.contratista || '—'
+  nA.font      = fnt(true, DARK, 9)
+  nD.font      = fnt(true, DARK, 9)
+  nA.alignment = aln('center', 'middle')
+  nD.alignment = aln('center', 'middle')
+  nA.border    = { top: bdM() }   // ← la línea queda ENCIMA del nombre
+  nD.border    = { top: bdM() }
 
   // Etiquetas de cargo
   const lblRow = ws.addRow(['', '', '', '', '', ''])
@@ -662,7 +669,7 @@ export async function exportExcel(d) {
   lA.alignment = aln('center')
   lD.alignment = aln('center')
 
-  // Banda inferior firmas
+  // Banda inferior
   addBand()
   ws.getRow(ws.rowCount).height = 8
 
