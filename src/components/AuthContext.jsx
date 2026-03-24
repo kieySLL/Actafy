@@ -29,7 +29,8 @@ export function AuthProvider({ children }) {
     const safetyTimer = setTimeout(() => setLoading(false), 8000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      clearTimeout(safetyTimer)
+      // ⚠️  NO cancelar el timer aquí: fetchProfile puede colgarse si Supabase
+      // está pausado. El timer sigue corriendo como red de seguridad.
       try {
         if (event === 'PASSWORD_RECOVERY') {
           setPasswordRecovery(true)
@@ -47,6 +48,8 @@ export function AuthProvider({ children }) {
         setSupaUser(null)
         setProfile(null)
       } finally {
+        // Cancelar el timer solo cuando TODO terminó (incluyendo fetchProfile)
+        clearTimeout(safetyTimer)
         setLoading(false)
       }
     })

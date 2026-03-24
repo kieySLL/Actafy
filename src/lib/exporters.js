@@ -9,8 +9,9 @@ import {
 import { fmtCOP, fmtNum } from './helpers'
 
 // ── Paleta ─────────────────────────────────────────────────────────────────
-const DARK   = [20,  30,  50 ]   // Fondo header tabla y grupos
-const BORD   = [80,  90, 110 ]   // Bordes tabla
+const DARK   = [20,  30,  50 ]   // Navy oscuro — bandas y encabezados
+const GRP    = [47,  84,  150]   // Azul medio — filas de grupo (75% más claro)
+const BORD   = [80,  90,  110]   // Bordes tabla
 const WHITE  = [255, 255, 255]
 const TEXT   = [20,  20,  20 ]   // Texto principal
 const SUB    = [90,  90,  90 ]   // Texto secundario
@@ -23,9 +24,7 @@ const filename = (d, ext) =>
 const fmtFecha = (str) => {
   if (!str) return '—'
   const [y, m, dd] = str.split('-')
-  const M = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-             'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-  return `${parseInt(dd, 10)}/${parseInt(m, 10).toString().padStart(2,'0')}/${y}`
+  return `${parseInt(dd, 10)}/${parseInt(m, 10).toString().padStart(2, '0')}/${y}`
 }
 
 // Formato numérico colombiano sin símbolo $
@@ -35,7 +34,7 @@ const fmtVal = (n) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  PDF  —  réplica exacta del formato Leobani
+//  PDF
 // ─────────────────────────────────────────────────────────────────────────────
 export async function exportPDF(d) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -44,75 +43,92 @@ export async function exportPDF(d) {
   const uw  = W - mg * 2
 
   // ── A. HEADER ──────────────────────────────────────────────────────────────
-  const hdrH  = 38        // altura total del recuadro de cabecera
-  const hdrY  = 10
-  const leftW = uw * 0.60 // 60% info contratista / 40% logo
-  const logoX = mg + leftW
-  const logoW = uw - leftW
+  const BAND_H   = 4           // altura de cada banda azul (superior e inferior)
+  const contentH = 32          // altura zona de contenido
+  const hdrH     = BAND_H * 2 + contentH   // 40 mm total
+  const hdrY     = 10
+
+  // Zonas horizontales (sin divisor vertical entre info y logo)
+  const infoW  = uw * 0.44    // izquierda: datos contratista
+  const actW   = uw * 0.18    // centro: ACTIVIDAD
+  const logoW  = uw - infoW - actW   // derecha: logo
+  const actX   = mg + infoW
+  const logoX  = mg + infoW + actW
+  const cy     = hdrY + BAND_H   // inicio del área de contenido
+
+  // Bandas rellenas (primero para que el borde quede encima)
+  doc.setFillColor(...DARK)
+  doc.rect(mg, hdrY,            uw, BAND_H, 'F')   // banda superior
+  doc.rect(mg, cy + contentH,   uw, BAND_H, 'F')   // banda inferior
 
   // Borde exterior del header
   doc.setDrawColor(...DARK); doc.setLineWidth(0.4)
   doc.rect(mg, hdrY, uw, hdrH)
 
-  // Divisor vertical entre info y logo
-  doc.line(logoX, hdrY, logoX, hdrY + hdrH)
+  // Divisores verticales sutiles entre las 3 zonas
+  doc.setDrawColor(...BORD); doc.setLineWidth(0.2)
+  doc.line(actX,  cy, actX,  cy + contentH)
+  doc.line(logoX, cy, logoX, cy + contentH)
 
-  // ── Columna izquierda: datos del contratista + cliente ────────────────────
-  const lx = mg + 3
+  // ── Zona izquierda: datos del contratista ─────────────────────────────────
+  const lx = mg + 6   // 6 mm de padding desde el borde izquierdo
   doc.setTextColor(...DARK)
-  doc.setFontSize(13); doc.setFont('helvetica', 'bold')
-  doc.text((d.contratista || '—').toUpperCase(), lx, hdrY + 7)
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold')
+  doc.text((d.contratista || '—').toUpperCase(), lx, cy + 6)
 
-  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...TEXT)
-  doc.text(`NIT: ${d.nit_c || '—'}`,           lx, hdrY + 13)
-  doc.text(`Fecha: ${fmtFecha(d.fecha)}`,       lx, hdrY + 18)
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...TEXT)
+  doc.text(`NIT: ${d.nit_c || '—'}`,      lx, cy + 11)
+  doc.text(`Fecha: ${fmtFecha(d.fecha)}`,  lx, cy + 16)
 
-  // N° acta + contrato
   const actaLabel = `N° de Acta: ${d.numero}${d.contrato ? '  (' + d.contrato + ')' : ''}`
-  doc.text(actaLabel,                           lx, hdrY + 23)
+  doc.text(actaLabel,                      lx, cy + 21)
 
   doc.setFont('helvetica', 'bold')
-  doc.text(`Cliente: ${(d.cliente || '—').toUpperCase()}`, lx, hdrY + 29)
+  doc.text(`Cliente: ${(d.cliente || '—').toUpperCase()}`, lx, cy + 26)
   doc.setFont('helvetica', 'normal')
-  doc.text(`NIT: ${d.nit_cl || '—'}`,           lx, hdrY + 34)
+  doc.text(`NIT: ${d.nit_cl || '—'}`,      lx, cy + 30)
 
-  // ── Columna derecha: logo ─────────────────────────────────────────────────
+  // ── Zona central: ACTIVIDAD ───────────────────────────────────────────────
+  const acxC = actX + actW / 2
+  const acyC = cy + contentH / 2
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK)
+  doc.text('ACTIVIDAD:', acxC, acyC - 3, { align: 'center' })
+  doc.setFontSize(8)
+  doc.text((d.tipo || 'OBRA CIVIL').toUpperCase(), acxC, acyC + 3,
+    { align: 'center', maxWidth: actW - 4 })
+
+  // ── Zona derecha: logo ────────────────────────────────────────────────────
   if (d.logo) {
     try {
       const ext = d.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG'
-      // Centrar logo en el área derecha con padding
-      const pad  = 3
-      doc.addImage(d.logo, ext, logoX + pad, hdrY + pad, logoW - pad * 2, hdrH - pad * 2, undefined, 'FAST')
+      const pad = 3
+      doc.addImage(d.logo, ext, logoX + pad, cy + pad,
+        logoW - pad * 2, contentH - pad * 2, undefined, 'FAST')
     } catch {}
   } else {
-    // Sin logo: mostrar nombre centrado
     doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK)
-    doc.text(d.contratista || '—', logoX + logoW / 2, hdrY + hdrH / 2 + 2, { align: 'center', maxWidth: logoW - 4 })
+    doc.text(d.contratista || '—', logoX + logoW / 2, cy + contentH / 2 + 2,
+      { align: 'center', maxWidth: logoW - 6 })
   }
 
-  // ── B. LÍNEA ACTIVIDAD ─────────────────────────────────────────────────────
+  // ── B. TABLA DE ACTIVIDADES ────────────────────────────────────────────────
   let y = hdrY + hdrH + 5
-  doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK)
-  doc.text(`ACTIVIDAD: ${(d.tipo || 'OBRA CIVIL').toUpperCase()}`, mg, y)
-  y += 6
-
-  // ── C. TABLA DE ACTIVIDADES ────────────────────────────────────────────────
   let groupNum = 0
   const rows = []
 
   d.grupos.forEach((g) => {
     groupNum++
-    // Fila de grupo: número + nombre en mayúsculas
+    // Fila de grupo: azul medio con texto blanco
     rows.push([{
       content: `${groupNum}.0     ${(g.nombre || 'Sin nombre').toUpperCase()}`,
       colSpan: 6,
       styles: {
         fontStyle:   'bold',
         fontSize:    8,
-        fillColor:   DARK,
+        fillColor:   GRP,
         textColor:   WHITE,
-        cellPadding: { top: 3, bottom: 3, left: 4, right: 3 },
-        lineColor:   DARK,
+        cellPadding: { top: 2.5, bottom: 2.5, left: 5, right: 3 },
+        lineColor:   GRP,
         lineWidth:   0.2,
       },
     }])
@@ -121,12 +137,12 @@ export async function exportPDF(d) {
       const vt   = Math.round((parseFloat(a.cant) || 0) * (parseFloat(a.vunit) || 0))
       const fill = ai % 2 === 0 ? WHITE : ROW_A
       rows.push([
-        { content: a.item || '',           styles: { halign: 'center',  fillColor: fill } },
-        { content: a.desc || '',           styles: { halign: 'left',    fillColor: fill } },
-        { content: a.und  || '',           styles: { halign: 'center',  fillColor: fill } },
-        { content: fmtNum(a.cant),         styles: { halign: 'right',   fillColor: fill } },
-        { content: a.vunit ? `$ ${fmtVal(a.vunit)}` : '—', styles: { halign: 'right', fillColor: fill } },
-        { content: vt > 0 ? `$ ${fmtVal(vt)}` : '—',      styles: { halign: 'right', fillColor: fill } },
+        { content: a.item || '',                              styles: { halign: 'center', fillColor: fill } },
+        { content: a.desc || '',                              styles: { halign: 'left',   fillColor: fill } },
+        { content: a.und  || '',                              styles: { halign: 'center', fillColor: fill } },
+        { content: fmtNum(a.cant),                            styles: { halign: 'right',  fillColor: fill } },
+        { content: a.vunit ? `$ ${fmtVal(a.vunit)}` : '—',   styles: { halign: 'right',  fillColor: fill } },
+        { content: vt > 0  ? `$ ${fmtVal(vt)}`      : '—',   styles: { halign: 'right',  fillColor: fill } },
       ])
     })
   })
@@ -138,7 +154,7 @@ export async function exportPDF(d) {
     margin:  { left: mg, right: mg },
     styles: {
       fontSize:    8,
-      cellPadding: { top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 },
+      cellPadding: { top: 2, bottom: 2, left: 5, right: 2.5 },
       lineColor:   BORD,
       lineWidth:   0.2,
       textColor:   TEXT,
@@ -150,7 +166,7 @@ export async function exportPDF(d) {
       fontStyle:   'bold',
       fontSize:    8,
       halign:      'center',
-      cellPadding: { top: 3.5, bottom: 3.5, left: 2, right: 2 },
+      cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
       lineColor:   DARK,
       lineWidth:   0.2,
     },
@@ -161,29 +177,27 @@ export async function exportPDF(d) {
       4: { cellWidth: 32 },
       5: { cellWidth: 32 },
     },
-    // Sin bordes exteriores raros — usamos los de la tabla
     tableLineColor: BORD,
     tableLineWidth: 0.2,
   })
 
   y = doc.lastAutoTable.finalY + 6
 
-  // ── D. TOTALES (tabla alineada a la derecha) ───────────────────────────────
+  // ── C. TOTALES (derecha) ───────────────────────────────────────────────────
   const T    = d.totals
   const aiu  = d.aiu
   const blkW = 95
   const tx   = W - mg - blkW
-  const c1   = blkW * 0.54   // ancho columna etiqueta
-  const c2   = blkW - c1     // ancho columna valor
-  const rh   = 7.5
+  const c1   = blkW * 0.54
+  const rh   = 7
 
   const totLines = [
-    { lbl: 'Total Bruto',                                 val: T.bruto,  bold: false },
-    { lbl: `ADMINISTRACION ${aiu.admin       || 10}%`,    val: T.admV,   bold: false },
-    { lbl: `IMPREVISTOS ${aiu.imprevistos    || 3}%`,     val: T.impV,   bold: false },
-    { lbl: `UTILIDAD ${aiu.utilidad          || 10}%`,    val: T.utiV,   bold: false },
-    { lbl: `IVA ${d.iva                      || 19}%`,    val: T.ivaV,   bold: false },
-    { lbl: 'TOTAL',                                       val: T.total,  bold: true  },
+    { lbl: 'Total Bruto',                             val: T.bruto, bold: false },
+    { lbl: `ADMINISTRACION ${aiu.admin      || 10}%`, val: T.admV,  bold: false },
+    { lbl: `IMPREVISTOS ${aiu.imprevistos   || 3}%`,  val: T.impV,  bold: false },
+    { lbl: `UTILIDAD ${aiu.utilidad         || 10}%`, val: T.utiV,  bold: false },
+    { lbl: `IVA ${d.iva                     || 19}%`, val: T.ivaV,  bold: false },
+    { lbl: 'TOTAL',                                   val: T.total, bold: true  },
   ]
 
   totLines.forEach(({ lbl, val, bold }, i) => {
@@ -194,19 +208,17 @@ export async function exportPDF(d) {
     doc.setFillColor(...fill)
     doc.rect(tx, ry, blkW, rh, 'F')
 
-    // Bordes
     doc.setDrawColor(...BORD); doc.setLineWidth(0.2)
     doc.rect(tx, ry, blkW, rh)
-    doc.line(tx + c1, ry, tx + c1, ry + rh) // divisor vertical
+    doc.line(tx + c1, ry, tx + c1, ry + rh)
 
-    // Texto etiqueta
+    // Etiqueta — siempre en negrita
     doc.setFontSize(7.5)
-    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(...tc)
     doc.text(lbl, tx + c1 - 2, ry + rh * 0.68, { align: 'right' })
 
-    // Texto valor
-    doc.setFont('helvetica', 'bold')
+    // Valor
     doc.text(fmtVal(val), tx + blkW - 2, ry + rh * 0.68, { align: 'right' })
   })
 
@@ -220,15 +232,48 @@ export async function exportPDF(d) {
     doc.text(lines, mg, y + 9)
   }
 
-  // ── E. FIRMAS ──────────────────────────────────────────────────────────────
-  let fy = y + totLines.length * rh + 12
-  if (fy > 270) { doc.addPage(); fy = 20 }
+  // ── D. FIRMAS ──────────────────────────────────────────────────────────────
+  const SIGN_BAND = 4
+  const signContH = 22
+  const sigTotalH = SIGN_BAND * 2 + signContH
 
-  doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...TEXT)
-  doc.text(`RECIBE: ${d.director || '—'}`, mg, fy)
-  doc.text(`CONTRATISTA: ${d.contratista || '—'}`, W - mg, fy, { align: 'right' })
+  let fy = y + totLines.length * rh + 14
+  if (fy + sigTotalH > 272) { doc.addPage(); fy = 20 }
 
-  // ── F. FOOTER discreto ────────────────────────────────────────────────────
+  // Banda superior
+  doc.setFillColor(...DARK)
+  doc.rect(mg, fy, uw, SIGN_BAND, 'F')
+
+  // Áreas de firma
+  const sigW  = uw * 0.36
+  const sigLX = mg + uw * 0.06
+  const sigRX = W - mg - uw * 0.06 - sigW
+  const lineY = fy + SIGN_BAND + 13
+  const nameY = fy + SIGN_BAND + 17
+  const lblY  = fy + SIGN_BAND + 21
+
+  // Líneas de firma
+  doc.setDrawColor(...BORD); doc.setLineWidth(0.3)
+  doc.line(sigLX, lineY, sigLX + sigW, lineY)
+  doc.line(sigRX, lineY, sigRX + sigW, lineY)
+
+  // Nombres
+  doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...DARK)
+  doc.text(d.director    || '—', sigLX + sigW / 2, nameY,
+    { align: 'center', maxWidth: sigW })
+  doc.text(d.contratista || '—', sigRX + sigW / 2, nameY,
+    { align: 'center', maxWidth: sigW })
+
+  // Etiquetas de cargo
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...SUB)
+  doc.text('RECIBE',      sigLX + sigW / 2, lblY, { align: 'center' })
+  doc.text('CONTRATISTA', sigRX + sigW / 2, lblY, { align: 'center' })
+
+  // Banda inferior
+  doc.setFillColor(...DARK)
+  doc.rect(mg, fy + SIGN_BAND + signContH, uw, SIGN_BAND, 'F')
+
+  // ── E. FOOTER discreto ────────────────────────────────────────────────────
   const pages = doc.internal.getNumberOfPages()
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p)
@@ -263,7 +308,7 @@ export async function exportWord(d) {
   const rightW = cW - leftW
 
   function infoCell() {
-    const actaLabel = `N° de Acta: ${d.numero}${d.contrato ? '  ('+d.contrato+')' : ''}`
+    const actaLabel = `N° de Acta: ${d.numero}${d.contrato ? '  (' + d.contrato + ')' : ''}`
     return new TableCell({
       width: { size: leftW, type: WidthType.DXA },
       borders: { top: bdrDark, bottom: bdrDark, left: bdrDark, right: bdrThin },
@@ -324,11 +369,10 @@ export async function exportWord(d) {
   let gNum = 0
   d.grupos.forEach((g) => {
     gNum++
-    // Fila de grupo
     actRows.push(new TableRow({ children: [new TableCell({
       columnSpan: 6,
       borders: { top: bdrThin, bottom: bdrThin, left: bdrDark, right: bdrDark },
-      shading: { type: ShadingType.CLEAR, fill: '141E32' },
+      shading: { type: ShadingType.CLEAR, fill: '2F5496' },   // azul medio
       margins: { top: 60, bottom: 60, left: 120, right: 80 },
       children: [new Paragraph({ children: [new TextRun({ text: `${gNum}.0     ${(g.nombre||'Sin nombre').toUpperCase()}`, bold: true, size: 17, color: 'FFFFFF', font: 'Arial' })] })],
     })] }))
@@ -365,12 +409,12 @@ export async function exportWord(d) {
   const vW  = tW - lW
 
   const totLines = [
-    { lbl: 'Total Bruto',                                 val: fmtVal(T.bruto),  bold: false },
-    { lbl: `ADMINISTRACION ${aiu.admin       || 10}%`,    val: fmtVal(T.admV),   bold: false },
-    { lbl: `IMPREVISTOS ${aiu.imprevistos    || 3}%`,     val: fmtVal(T.impV),   bold: false },
-    { lbl: `UTILIDAD ${aiu.utilidad          || 10}%`,    val: fmtVal(T.utiV),   bold: false },
-    { lbl: `IVA ${d.iva                      || 19}%`,    val: fmtVal(T.ivaV),   bold: false },
-    { lbl: 'TOTAL',                                       val: fmtVal(T.total),  bold: true  },
+    { lbl: 'Total Bruto',                             val: fmtVal(T.bruto), bold: false },
+    { lbl: `ADMINISTRACION ${aiu.admin      || 10}%`, val: fmtVal(T.admV), bold: false },
+    { lbl: `IMPREVISTOS ${aiu.imprevistos   || 3}%`,  val: fmtVal(T.impV), bold: false },
+    { lbl: `UTILIDAD ${aiu.utilidad         || 10}%`, val: fmtVal(T.utiV), bold: false },
+    { lbl: `IVA ${d.iva                     || 19}%`, val: fmtVal(T.ivaV), bold: false },
+    { lbl: 'TOTAL',                                   val: fmtVal(T.total),bold: true  },
   ]
 
   const totRows = totLines.map(({ lbl, val, bold }) => new TableRow({ children: [
@@ -378,7 +422,7 @@ export async function exportWord(d) {
       width: { size: lW, type: WidthType.DXA }, borders,
       shading: { type: ShadingType.CLEAR, fill: bold ? '141E32' : 'F5F6F8' },
       margins: { top: 80, bottom: 80, left: 80, right: 80 },
-      children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: lbl, bold, size: bold ? 18 : 16, color: bold ? 'FFFFFF' : '141414', font: 'Arial' })] })],
+      children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: lbl, bold: true, size: bold ? 18 : 16, color: bold ? 'FFFFFF' : '141414', font: 'Arial' })] })],
     }),
     new TableCell({
       width: { size: vW, type: WidthType.DXA }, borders,
@@ -433,8 +477,12 @@ export async function exportExcel(d) {
   wb.creator = 'Actafy'
   const ws   = wb.addWorksheet(`ACTA ${d.numero}`)
 
+  // Sin cuadrícula visible
+  ws.views = [{ showGridLines: false }]
+
   // ── Paleta ─────────────────────────────────────────────────────────────
   const DARK  = '141E32'
+  const GRP_C = '2F5496'   // Azul medio — grupos
   const WHITE = 'FFFFFF'
   const LIGHT = 'F5F6F8'
   const BORD  = '50596E'
@@ -445,69 +493,113 @@ export async function exportExcel(d) {
   const bAll = () => ({ top: bdT(), bottom: bdT(), left: bdT(), right: bdT() })
   const fnt  = (bold = false, color = '141414', size = 9) =>
     ({ name: 'Arial', size, bold, color: { argb: color } })
-  const bg   = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
+  const bg   = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: argb } })
   const aln  = (h = 'left', v = 'middle') => ({ horizontal: h, vertical: v })
 
   // ── Anchos de columna ────────────────────────────────────────────────────
+  // 3 zonas header: A:B (info), C:D (actividad), E:F (logo)
+  // Tabla: A(item) B(desc) C(und) D(cant) E(precio) F(total)
   ws.columns = [
-    { width: 8  },   // A: Item
-    { width: 46 },   // B: Descripción
-    { width: 8  },   // C: UND
-    { width: 11 },   // D: Cantidad
-    { width: 20 },   // E: Precio Unitario
-    { width: 20 },   // F: Precio Gral.
+    { width: 8  },   // A
+    { width: 38 },   // B
+    { width: 10 },   // C
+    { width: 12 },   // D
+    { width: 22 },   // E
+    { width: 22 },   // F
   ]
 
-  // ── A. HEADER (filas 1-6) ───────────────────────────────────────────────
-  const hdrLines = [
-    { left: (d.contratista || '—').toUpperCase(), right: '', bold: true,  size: 12, h: 22 },
-    { left: `NIT: ${d.nit_c || '—'}`,            right: '',              size: 9,  h: 15 },
-    { left: `Fecha: ${fmtFecha(d.fecha)}`,        right: '',              size: 9,  h: 15 },
-    { left: `N° de Acta: ${d.numero}${d.contrato ? '  (' + d.contrato + ')' : ''}`, right: '', size: 9, h: 15 },
-    { left: `Cliente: ${(d.cliente || '—').toUpperCase()}`, right: `ACTIVIDAD: ${(d.tipo || 'OBRA CIVIL').toUpperCase()}`, bold: true, size: 9, h: 15 },
-    { left: `NIT: ${d.nit_cl || '—'}`,            right: '',              size: 9,  h: 15 },
+  // ── A. HEADER ──────────────────────────────────────────────────────────────
+  // Banda superior
+  const addFullBand = () => {
+    const r  = ws.addRow(['', '', '', '', '', ''])
+    const rn = ws.rowCount
+    r.height = 6
+    ws.mergeCells(`A${rn}:F${rn}`)
+    ws.getCell(`A${rn}`).fill = bg(DARK)
+  }
+
+  addFullBand()   // ← banda superior
+
+  // 6 filas de contenido
+  const hdrRows = [
+    { info: (d.contratista || '—').toUpperCase(), bold: true,  size: 12, h: 22 },
+    { info: `NIT: ${d.nit_c || '—'}`,              bold: false, size: 9,  h: 14 },
+    { info: `Fecha: ${fmtFecha(d.fecha)}`,          bold: false, size: 9,  h: 14 },
+    { info: `N° de Acta: ${d.numero}${d.contrato ? '  (' + d.contrato + ')' : ''}`,
+                                                    bold: false, size: 9,  h: 14 },
+    { info: `Cliente: ${(d.cliente || '—').toUpperCase()}`, bold: true, size: 9, h: 14 },
+    { info: `NIT: ${d.nit_cl || '—'}`,              bold: false, size: 9,  h: 14 },
   ]
 
-  hdrLines.forEach(({ left, right, bold = false, size = 9, h = 15 }, i) => {
-    const row = ws.addRow([left, '', '', '', right, ''])
+  const hdrContentStartRow = ws.rowCount + 1   // 1-indexed, primera fila de contenido
+
+  hdrRows.forEach(({ info, bold, size, h }, i) => {
+    const row = ws.addRow(['', '', '', '', '', ''])
     const rn  = ws.rowCount
     row.height = h
 
-    ws.mergeCells(`A${rn}:D${rn}`)
-    ws.mergeCells(`E${rn}:F${rn}`)
+    ws.mergeCells(`A${rn}:B${rn}`)   // zona info
+    ws.mergeCells(`C${rn}:D${rn}`)   // zona actividad
+    ws.mergeCells(`E${rn}:F${rn}`)   // zona logo
 
+    const isFirst = i === 0
+    const isLast  = i === hdrRows.length - 1
+
+    // Celda info (izquierda)
     const cA = ws.getCell(`A${rn}`)
-    const cE = ws.getCell(`E${rn}`)
-
+    cA.value     = info
     cA.font      = fnt(bold, DARK, size)
-    cA.alignment = aln('left')
-    cE.font      = fnt(true, DARK, 9)
-    cE.alignment = aln('right')
+    cA.alignment = { ...aln('left'), indent: 1 }
+    cA.border    = {
+      left:   bdM(),
+      right:  bdT(),
+      top:    isFirst ? bdM() : undefined,
+      bottom: isLast  ? bdM() : undefined,
+    }
 
-    // Borde exterior del bloque header
-    const isTop = i === 0; const isBot = i === 5
-    for (let c = 1; c <= 6; c++) {
-      const cell = ws.getCell(rn, c)
-      cell.border = {
-        top:    isTop ? bdM() : undefined,
-        bottom: isBot ? bdM() : undefined,
-        left:   c === 1 ? bdM() : c === 5 ? bdT() : undefined,
-        right:  c === 6 ? bdM() : c === 4 ? bdT() : undefined,
-      }
+    // Celda actividad (centro) — solo en fila 3 (índice 2)
+    const cC = ws.getCell(`C${rn}`)
+    cC.border = {
+      left:   bdT(),
+      right:  bdT(),
+      top:    isFirst ? bdM() : undefined,
+      bottom: isLast  ? bdM() : undefined,
+    }
+    if (i === 2) {
+      cC.value     = `ACTIVIDAD: ${(d.tipo || 'OBRA CIVIL').toUpperCase()}`
+      cC.font      = fnt(true, DARK, 8)
+      cC.alignment = aln('center')
+    }
+
+    // Celda logo (derecha) — sin contenido; la imagen se superpone
+    const cE = ws.getCell(`E${rn}`)
+    cE.border = {
+      left:   bdT(),
+      right:  bdM(),
+      top:    isFirst ? bdM() : undefined,
+      bottom: isLast  ? bdM() : undefined,
     }
   })
 
-  // Logo como imagen (si existe)
+  const hdrContentEndRow = ws.rowCount   // 1-indexed, última fila de contenido
+
+  addFullBand()   // ← banda inferior
+
+  // Logo como imagen superpuesta sobre zona derecha
   if (d.logo) {
     try {
-      const b64  = d.logo.includes(',') ? d.logo.split(',')[1] : d.logo
-      const ext  = d.logo.startsWith('data:image/png') ? 'png' : 'jpeg'
+      const b64   = d.logo.includes(',') ? d.logo.split(',')[1] : d.logo
+      const ext   = d.logo.startsWith('data:image/png') ? 'png' : 'jpeg'
       const imgId = wb.addImage({ base64: b64, extension: ext })
-      ws.addImage(imgId, { tl: { col: 4, row: 0 }, br: { col: 6, row: 6 }, editAs: 'oneCell' })
+      ws.addImage(imgId, {
+        tl: { col: 4, row: hdrContentStartRow - 1 },   // col E (0-indexed=4), fila inicio
+        br: { col: 6, row: hdrContentEndRow },           // col tras F (0-indexed=6), fila fin
+        editAs: 'oneCell',
+      })
     } catch {}
   }
 
-  ws.addRow([])  // Fila vacía separadora
+  ws.addRow([])   // separador
 
   // ── B. ENCABEZADO DE TABLA ───────────────────────────────────────────────
   const thRow = ws.addRow(['Item', 'Descripción', 'UND', 'Cantidad', 'Precio Unitario', 'Precio Gral.'])
@@ -524,25 +616,23 @@ export async function exportExcel(d) {
 
   d.grupos.forEach((g) => {
     gNum++
-    // Fila de grupo
     const gRow = ws.addRow([`${gNum}.0  ${(g.nombre || '').toUpperCase()}`, '', '', '', '', ''])
     const gRn  = ws.rowCount
     ws.mergeCells(`A${gRn}:F${gRn}`)
     gRow.height = 18
     const gCell = ws.getCell(`A${gRn}`)
-    gCell.fill      = bg(DARK)
+    gCell.fill      = bg(GRP_C)
     gCell.font      = fnt(true, WHITE)
     gCell.border    = bAll()
-    gCell.alignment = aln('left')
+    gCell.alignment = { ...aln('left'), indent: 1 }
     alt = false
 
-    // Items del grupo
     g.acts.filter(a => a.desc).forEach((a) => {
-      const vt   = Math.round((parseFloat(a.cant) || 0) * (parseFloat(a.vunit) || 0))
+      const vt    = Math.round((parseFloat(a.cant) || 0) * (parseFloat(a.vunit) || 0))
       const rowBg = alt ? LIGHT : WHITE
-      const row  = ws.addRow([
+      const row   = ws.addRow([
         a.item || '', a.desc || '', a.und || '',
-        parseFloat(a.cant) || 0,
+        parseFloat(a.cant)  || 0,
         parseFloat(a.vunit) || 0,
         vt,
       ])
@@ -552,26 +642,26 @@ export async function exportExcel(d) {
         cell.fill   = bg(rowBg)
         cell.font   = fnt()
         cell.border = bAll()
-        if (ci === 1 || ci === 3) cell.alignment = aln('center')
-        else if (ci === 4)        { cell.alignment = aln('right'); cell.numFmt = '#,##0.00' }
+        if (ci === 1 || ci === 3)      cell.alignment = aln('center')
+        else if (ci === 4)             { cell.alignment = aln('right'); cell.numFmt = '#,##0.00' }
         else if (ci === 5 || ci === 6) { cell.alignment = aln('right'); cell.numFmt = '#,##0' }
-        else                      cell.alignment = aln('left')
+        else                           cell.alignment = aln('left')
       })
       alt = !alt
     })
   })
 
-  ws.addRow([])  // Separador
+  ws.addRow([])   // separador
 
   // ── D. TOTALES (columnas E-F) ────────────────────────────────────────────
   const T = d.totals; const aiu = d.aiu
   const totLines = [
-    { lbl: 'Total Bruto',                          val: T.bruto,  bold: false },
-    { lbl: `ADMINISTRACION ${aiu.admin    || 10}%`, val: T.admV,  bold: false },
-    { lbl: `IMPREVISTOS ${aiu.imprevistos || 3}%`,  val: T.impV,  bold: false },
-    { lbl: `UTILIDAD ${aiu.utilidad       || 10}%`, val: T.utiV,  bold: false },
-    { lbl: `IVA ${d.iva                   || 19}%`, val: T.ivaV,  bold: false },
-    { lbl: 'TOTAL',                                 val: T.total, bold: true  },
+    { lbl: 'Total Bruto',                          val: T.bruto, bold: false },
+    { lbl: `ADMINISTRACION ${aiu.admin    || 10}%`, val: T.admV, bold: false },
+    { lbl: `IMPREVISTOS ${aiu.imprevistos || 3}%`,  val: T.impV, bold: false },
+    { lbl: `UTILIDAD ${aiu.utilidad       || 10}%`, val: T.utiV, bold: false },
+    { lbl: `IVA ${d.iva                   || 19}%`, val: T.ivaV, bold: false },
+    { lbl: 'TOTAL',                                 val: T.total,bold: true  },
   ]
 
   totLines.forEach(({ lbl, val, bold }, i) => {
@@ -584,22 +674,58 @@ export async function exportExcel(d) {
 
     const cL = ws.getCell(`E${rn}`)
     const cV = ws.getCell(`F${rn}`)
-    cL.fill      = bg(rowBg);  cV.fill      = bg(rowBg)
-    cL.font      = fnt(bold, color); cV.font = fnt(true, color)
-    cL.border    = bAll();     cV.border    = bAll()
+    cL.fill      = bg(rowBg);   cV.fill      = bg(rowBg)
+    cL.font      = fnt(true, color)   // etiqueta siempre en negrita
+    cV.font      = fnt(true, color)
+    cL.border    = bAll();      cV.border    = bAll()
     cL.alignment = aln('right'); cV.alignment = aln('right')
     cV.numFmt    = '#,##0'
   })
 
   // ── E. FIRMAS ────────────────────────────────────────────────────────────
   ws.addRow([])
-  const sigRow = ws.addRow([`RECIBE: ${d.director || '—'}`, '', '', '', `CONTRATISTA: ${d.contratista || '—'}`, ''])
+
+  // Banda superior de firmas
+  const sigBandTop = ws.addRow(['', '', '', '', '', ''])
+  const sbtRn = ws.rowCount
+  ws.mergeCells(`A${sbtRn}:F${sbtRn}`)
+  sigBandTop.height = 8
+  ws.getCell(`A${sbtRn}`).fill = bg(DARK)
+
+  // Nombres con línea inferior (simulan línea de firma)
+  const sigRow = ws.addRow([d.director || '—', '', '', '', d.contratista || '—', ''])
   const sigRn  = ws.rowCount
   ws.mergeCells(`A${sigRn}:D${sigRn}`)
   ws.mergeCells(`E${sigRn}:F${sigRn}`)
-  sigRow.getCell(1).font = fnt(false, '141414', 9)
-  sigRow.getCell(5).font = fnt(false, '141414', 9)
-  sigRow.getCell(5).alignment = aln('right')
+  sigRow.height = 28
+  const sA = sigRow.getCell(1)
+  const sE = sigRow.getCell(5)
+  sA.font      = fnt(true, DARK, 9)
+  sA.alignment = aln('center', 'bottom')
+  sA.border    = { bottom: { style: 'medium', color: { argb: DARK } } }
+  sE.font      = fnt(true, DARK, 9)
+  sE.alignment = aln('center', 'bottom')
+  sE.border    = { bottom: { style: 'medium', color: { argb: DARK } } }
+
+  // Etiquetas de cargo
+  const lblRow = ws.addRow(['RECIBE', '', '', '', 'CONTRATISTA', ''])
+  const lblRn  = ws.rowCount
+  ws.mergeCells(`A${lblRn}:D${lblRn}`)
+  ws.mergeCells(`E${lblRn}:F${lblRn}`)
+  lblRow.height = 14
+  const lA = lblRow.getCell(1)
+  const lE = lblRow.getCell(5)
+  lA.font      = fnt(false, '505050', 8)
+  lA.alignment = aln('center')
+  lE.font      = fnt(false, '505050', 8)
+  lE.alignment = aln('center')
+
+  // Banda inferior de firmas
+  const sigBandBot = ws.addRow(['', '', '', '', '', ''])
+  const sbbRn = ws.rowCount
+  ws.mergeCells(`A${sbbRn}:F${sbbRn}`)
+  sigBandBot.height = 8
+  ws.getCell(`A${sbbRn}`).fill = bg(DARK)
 
   // ── GUARDAR ──────────────────────────────────────────────────────────────
   const buffer = await wb.xlsx.writeBuffer()
