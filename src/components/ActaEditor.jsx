@@ -54,7 +54,7 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
   }, [form]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const T = calcTotals(form.grupos, user.aiu || {}, user.iva ?? 19)
-  const TABS = ['Obra y cliente', 'Actividades', 'Fotos', 'Exportar']
+  const TABS = ['Obra y cliente', 'Actividades', 'Exportar']
 
   // ── Grupo / actividad actions ──────────────────────────────────────────────
   const addGrupo = () => setForm(f => ({ ...f, grupos: [...f.grupos, emptyGrupo()] }))
@@ -372,41 +372,8 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
         </div>
       )}
 
-      {/* ── Tab 2: Fotos ── */}
+      {/* ── Tab 2: Exportar ── */}
       {tab === 2 && (
-        <div>
-          <div onClick={() => fotoRef.current?.click()} style={{ border: '2px dashed var(--borde)', borderRadius: 'var(--radio-lg)', padding: 32, textAlign: 'center', cursor: 'pointer', marginBottom: 16, background: 'var(--gris)' }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ display: 'block', margin: '0 auto 8px', opacity: 0.4 }}>
-              <rect x="2" y="6" width="20" height="15" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-              <circle cx="12" cy="13" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M8 6V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
-            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>Agregar fotos</p>
-            <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 4 }}>JPG, PNG · máx {MAX_FOTO_MB}MB por foto · opcionales</p>
-            <input ref={fotoRef} type="file" accept="image/*" multiple onChange={addFotos} style={{ display: 'none' }} />
-          </div>
-          {form.fotos.length === 0 ? (
-            <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--sub)' }}>Sin fotos agregadas.</p>
-          ) : (
-            <div className="foto-grid">
-              {form.fotos.map((f, i) => (
-                <div key={i} className="foto-card">
-                  <div style={{ position: 'relative' }}>
-                    <img src={f.data} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
-                    <button onClick={() => removeFoto(i)} style={{ position: 'absolute', top: 5, right: 5, width: 22, height: 22, border: 'none', borderRadius: '50%', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 15, padding: 0, cursor: 'pointer', lineHeight: 1 }}>×</button>
-                  </div>
-                  <div style={{ padding: '6px 8px' }}>
-                    <input value={f.cap} onChange={e => setFotoCap(i, e.target.value)} placeholder="Pie de foto..." style={{ fontSize: 11, padding: '4px 6px' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Tab 3: Exportar ── */}
-      {tab === 3 && (
         <div>
           <div className="card" style={{ marginBottom: 14 }}>
             <div className="sect-title">Resumen del acta</div>
@@ -419,7 +386,6 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
               ['Cliente', form.empresa_c || '—'],
               ['Director de obra', form.director || '—'],
               ['Actividades', form.grupos.reduce((s, g) => s + g.acts.filter(a => a.desc).length, 0)],
-              ['Fotos', form.fotos.length],
               ['Total final', fmtCOP(T.total)],
             ].map(([k, v], i, arr) => (
               <div key={k} className={`summary-row${i === arr.length - 1 ? ' total' : ''}`}>
