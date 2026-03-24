@@ -120,28 +120,56 @@ function EmpresaTab() {
 }
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
+const CLIENTE_VACIO = { nombre: '', nit: '', director: '', cargo: 'Director de Obra', tel: '', ciudad: '' }
+
 function ClientesTab() {
   const { user, updateUser } = useAuth()
   const [showForm, setShowForm] = useState(false)
-  const [f, setF]   = useState({ nombre: '', nit: '', director: '', cargo: 'Director de Obra', tel: '', ciudad: '' })
+  const [editIdx, setEditIdx]   = useState(null)   // null = nuevo, número = editar índice
+  const [f, setF]       = useState(CLIENTE_VACIO)
   const [saving, setSaving] = useState(false)
+  const [msg, setMsg]       = useState('')          // éxito
   const [err, setErr]       = useState('')
   const set = (k, v) => setF(x => ({ ...x, [k]: v }))
+
+  const openNew = () => {
+    setEditIdx(null)
+    setF(CLIENTE_VACIO)
+    setErr(''); setMsg('')
+    setShowForm(true)
+  }
+
+  const openEdit = (i) => {
+    setEditIdx(i)
+    setF({ ...CLIENTE_VACIO, ...(user?.clientes || [])[i] })
+    setErr(''); setMsg('')
+    setShowForm(true)
+  }
+
+  const cancel = () => { setShowForm(false); setEditIdx(null); setErr('') }
 
   const save = async () => {
     if (!f.nombre.trim()) { setErr('El nombre de la empresa es obligatorio'); return }
     setSaving(true); setErr('')
-    const res = await updateUser({ clientes: [...(user?.clientes || []), { ...f }] })
+    const lista = [...(user?.clientes || [])]
+    if (editIdx !== null) {
+      lista[editIdx] = { ...f }                         // reemplaza el existente
+    } else {
+      lista.push({ ...f })                              // agrega nuevo
+    }
+    const res = await updateUser({ clientes: lista })
     setSaving(false)
     if (res.ok) {
-      setF({ nombre: '', nit: '', director: '', cargo: 'Director de Obra', tel: '', ciudad: '' })
-      setShowForm(false)
+      setMsg(editIdx !== null ? 'Cliente actualizado ✓' : 'Cliente agregado ✓')
+      setTimeout(() => setMsg(''), 2500)
+      cancel()
     } else {
       setErr(res.error || 'Error al guardar cliente')
     }
   }
 
   const del = async (i) => {
+    if (!confirm('¿Eliminar este cliente?')) return
     const res = await updateUser({ clientes: (user?.clientes || []).filter((_, j) => j !== i) })
     if (!res.ok) setErr(res.error || 'Error al eliminar')
   }
@@ -150,39 +178,51 @@ function ClientesTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>{(user?.clientes || []).length} cliente(s) guardado(s)</span>
-        <button className="btn-primary btn-sm" onClick={() => { setShowForm(s => !s); setErr('') }}>
-          {showForm ? 'Cancelar' : '+ Agregar cliente'}
-        </button>
+        {!showForm && (
+          <button className="btn-primary btn-sm" onClick={openNew}>+ Agregar cliente</button>
+        )}
       </div>
 
       {err && <div className="alert alert-err" style={{ marginBottom: 10 }}>{err}</div>}
+      {msg && <div className="alert alert-ok"  style={{ marginBottom: 10 }}>{msg}</div>}
 
       {showForm && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="sect-title">Nuevo cliente</div>
+        <div className="card" style={{ marginBottom: 14, border: '2px solid var(--azul2)' }}>
+          <div className="sect-title">{editIdx !== null ? '✏️ Editar cliente' : 'Nuevo cliente'}</div>
           <div className="grid2" style={{ marginBottom: 10 }}>
-            <Field label="Empresa / Razón social *"><input value={f.nombre} onChange={e => set('nombre', e.target.value)} autoFocus /></Field>
-            <Field label="NIT"><input value={f.nit} onChange={e => set('nit', e.target.value)} /></Field>
+            <Field label="Empresa / Razón social *">
+              <input value={f.nombre} onChange={e => set('nombre', e.target.value)} autoFocus />
+            </Field>
+            <Field label="NIT">
+              <input value={f.nit} onChange={e => set('nit', e.target.value)} />
+            </Field>
           </div>
           <div className="grid3" style={{ marginBottom: 10 }}>
-            <Field label="Director de obra"><input value={f.director} onChange={e => set('director', e.target.value)} /></Field>
-            <Field label="Cargo"><input value={f.cargo} onChange={e => set('cargo', e.target.value)} /></Field>
-            <Field label="Teléfono"><input value={f.tel} onChange={e => set('tel', e.target.value)} /></Field>
+            <Field label="Director de obra">
+              <input value={f.director} onChange={e => set('director', e.target.value)} />
+            </Field>
+            <Field label="Cargo">
+              <input value={f.cargo} onChange={e => set('cargo', e.target.value)} />
+            </Field>
+            <Field label="Teléfono">
+              <input value={f.tel} onChange={e => set('tel', e.target.value)} />
+            </Field>
           </div>
           <Field label="Ciudad" style={{ marginBottom: 14 }}>
             <input value={f.ciudad} onChange={e => set('ciudad', e.target.value)} />
           </Field>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn-primary" onClick={save} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar cliente'}
+              {saving ? 'Guardando…' : editIdx !== null ? 'Guardar cambios' : 'Guardar cliente'}
             </button>
-            <button onClick={() => { setShowForm(false); setErr('') }}>Cancelar</button>
+            <button onClick={cancel}>Cancelar</button>
           </div>
         </div>
       )}
 
       {(user?.clientes || []).length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--sub)' }}>
+          <p style={{ fontSize: 24, marginBottom: 8 }}>🏢</p>
           <p style={{ marginBottom: 6 }}>Aún no tienes clientes guardados.</p>
           <p style={{ fontSize: 12 }}>Agrégalos para no escribirlos en cada acta.</p>
         </div>
@@ -194,10 +234,26 @@ function ClientesTab() {
               <div className="avatar" style={{ background: bg, color: fg }}>{initials(c.nombre)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 700, fontSize: 13 }}>{c.nombre}</p>
-                <p style={{ fontSize: 12, color: 'var(--sub)' }}>{c.nit}{c.ciudad ? ' · ' + c.ciudad : ''}</p>
-                {c.director && <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>{c.director} · {c.cargo}</p>}
+                <p style={{ fontSize: 12, color: 'var(--sub)' }}>
+                  {c.nit}{c.ciudad ? ' · ' + c.ciudad : ''}
+                </p>
+                {c.director && (
+                  <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 2 }}>
+                    {c.director}{c.cargo ? ' · ' + c.cargo : ''}
+                    {c.tel ? ' · ' + c.tel : ''}
+                  </p>
+                )}
               </div>
-              <button className="btn-danger btn-sm" onClick={() => del(i)}>Eliminar</button>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button
+                  className="btn-sm"
+                  style={{ color: 'var(--azul2)', borderColor: 'var(--azul2)', fontSize: 12 }}
+                  onClick={() => openEdit(i)}
+                >
+                  ✏️ Editar
+                </button>
+                <button className="btn-danger btn-sm" onClick={() => del(i)}>Eliminar</button>
+              </div>
             </div>
           )
         })

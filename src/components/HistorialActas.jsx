@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
 import { loadActas, loadActaById, deleteActa, updateEstado } from '../lib/actasDB'
 import { fmtCOP } from '../lib/helpers'
+import { ActafyIcon } from './ActafyLogo'
 
 const ESTADOS = ['Borrador', 'Generada', 'Firmada', 'Pagada']
 
@@ -18,6 +19,10 @@ export default function HistorialActas({ onNew, onEdit, onSettings, onLogout }) 
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [opening, setOpening] = useState(null)
+  const [search, setSearch] = useState('')
+  const [filterEstado, setFilterEstado] = useState('Todos')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
 
   useEffect(() => {
     if (!userId) return
@@ -78,16 +83,29 @@ export default function HistorialActas({ onNew, onEdit, onSettings, onLogout }) 
   const totalPagadas = actas.filter(a => a.estado === 'Pagada').length
   const valorPagado  = actas.filter(a => a.estado === 'Pagada').reduce((s, a) => s + (a.total_final || 0), 0)
 
+  // ── Filtrado ──────────────────────────────────────────────────────────────
+  const hayFiltros = search || filterEstado !== 'Todos' || fechaDesde || fechaHasta
+  const actasFiltradas = actas.filter(a => {
+    const matchEstado = filterEstado === 'Todos' || (a.estado || 'Borrador') === filterEstado
+    const q = search.trim().toLowerCase()
+    const matchSearch = !q ||
+      (a.obra      || '').toLowerCase().includes(q) ||
+      (a.empresa_c || '').toLowerCase().includes(q) ||
+      String(a.numero || '').toLowerCase().includes(q)
+    const fecha = a.fecha || ''
+    const matchDesde = !fechaDesde || fecha >= fechaDesde
+    const matchHasta = !fechaHasta || fecha <= fechaHasta
+    return matchEstado && matchSearch && matchDesde && matchHasta
+  })
+
   return (
     <div className="page">
       {/* Topbar */}
       <div className="topbar" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-          <div style={{ width: 30, height: 30, background: 'rgba(255,255,255,0.15)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="white" strokeWidth="1.8"/><path d="M8 7V5a4 4 0 0 1 8 0v2" stroke="white" strokeWidth="1.8"/></svg>
-          </div>
+          <ActafyIcon size={30} />
           <div>
-            <p style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Actafy</p>
+            <p style={{ fontFamily: "'Pacifico', cursive", color: '#fff', fontWeight: 400, fontSize: 15, letterSpacing: '-0.3px' }}>Actafy</p>
             <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>{user?.nombre || 'Mi empresa'}</p>
           </div>
         </div>
@@ -120,20 +138,88 @@ export default function HistorialActas({ onNew, onEdit, onSettings, onLogout }) 
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--azul)' }}>Mis actas</h2>
+      {/* Buscador y filtros */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+        {/* Búsqueda libre */}
+        <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
+          <svg style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="#64748B" strokeWidth="2"/>
+            <path d="M20 20l-3.5-3.5" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <input
+            placeholder="Buscar por obra, cliente o número…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ paddingLeft: 28, fontSize: 12 }}
+          />
+        </div>
+        {/* Estado */}
+        <select
+          value={filterEstado}
+          onChange={e => setFilterEstado(e.target.value)}
+          style={{ width: 130, fontSize: 12, flexShrink: 0 }}
+        >
+          <option>Todos</option>
+          {ESTADOS.map(st => <option key={st}>{st}</option>)}
+        </select>
+      </div>
+
+      {/* Filtros de fecha en segunda fila */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: 'var(--sub)', whiteSpace: 'nowrap' }}>Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={e => setFechaDesde(e.target.value)}
+            style={{ fontSize: 12, width: 140 }}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: 'var(--sub)', whiteSpace: 'nowrap' }}>Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={e => setFechaHasta(e.target.value)}
+            style={{ fontSize: 12, width: 140 }}
+          />
+        </div>
+        {hayFiltros && (
+          <button
+            onClick={() => { setSearch(''); setFilterEstado('Todos'); setFechaDesde(''); setFechaHasta('') }}
+            style={{ fontSize: 12, padding: '6px 12px', flexShrink: 0 }}
+          >
+            ✕ Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <p style={{ fontSize: 12, color: 'var(--sub)' }}>
+          {actasFiltradas.length} de {actas.length} acta{actas.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--sub)' }}>Cargando…</div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--sub)' }}>
+          <span className="spinner" style={{ borderTopColor: 'var(--azul)' }} />Cargando…
+        </div>
       ) : actas.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--sub)' }}>
+          <p style={{ fontSize: 32, marginBottom: 12 }}>📋</p>
           <p style={{ fontWeight: 700, marginBottom: 8 }}>Aún no tienes actas guardadas</p>
           <p style={{ fontSize: 12, marginBottom: 20 }}>Crea tu primera acta y guárdala para verla aquí.</p>
           <button className="btn-primary" onClick={onNew}>+ Crear primera acta</button>
         </div>
+      ) : actasFiltradas.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--sub)' }}>
+          <p style={{ fontSize: 28, marginBottom: 10 }}>🔍</p>
+          <p style={{ fontWeight: 700, marginBottom: 6 }}>Sin resultados</p>
+          <p style={{ fontSize: 12 }}>Intenta con otro término o limpia los filtros.</p>
+        </div>
       ) : (
-        actas.map(a => {
+        actasFiltradas.map(a => {
           const est = a.estado || 'Borrador'
           const s = ESTADO_STYLE[est] || ESTADO_STYLE.Borrador
           return (

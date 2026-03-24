@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { useAuth } from './AuthContext'
+import ActafyLogo from './ActafyLogo'
 
 // ── AuthScreen ─────────────────────────────────────────────────────────────
-export default function AuthScreen() {
-  const [mode, setMode] = useState('login') // 'login' | 'register' | 'forgot'
+export default function AuthScreen({ initialMode = 'login', onBack }) {
+  const [mode, setMode] = useState(initialMode) // 'login' | 'register' | 'forgot'
 
   if (mode === 'forgot')    return <ForgotPasswordForm onBack={() => setMode('login')} />
-  if (mode === 'register')  return <RegisterForm onSwitch={() => setMode('login')} />
-  return <LoginForm onSwitch={() => setMode('register')} onForgot={() => setMode('forgot')} />
+  if (mode === 'register')  return <RegisterForm onSwitch={() => setMode('login')} onBack={onBack} />
+  return <LoginForm onSwitch={() => setMode('register')} onForgot={() => setMode('forgot')} onBack={onBack} />
 }
 
 // ── Login ──────────────────────────────────────────────────────────────────
-function LoginForm({ onSwitch, onForgot }) {
+function LoginForm({ onSwitch, onForgot, onBack }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [pass, setPass]   = useState('')
@@ -30,6 +31,11 @@ function LoginForm({ onSwitch, onForgot }) {
   return (
     <div className="page" style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
       <div style={{ width: 340 }}>
+        {onBack && (
+          <button onClick={onBack} style={{ marginBottom: 16, fontSize: 12, color: 'var(--sub)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            ← Volver al inicio
+          </button>
+        )}
         <Logo />
         <div className="card">
           <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 18, color: 'var(--azul)' }}>
@@ -43,10 +49,7 @@ function LoginForm({ onSwitch, onForgot }) {
             <input type="password" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
           </Field>
           <div style={{ textAlign: 'right', marginBottom: 18 }}>
-            <span
-              onClick={onForgot}
-              style={{ fontSize: 12, color: 'var(--azul2)', cursor: 'pointer', fontWeight: 500 }}
-            >
+            <span onClick={onForgot} style={{ fontSize: 12, color: 'var(--azul2)', cursor: 'pointer', fontWeight: 500 }}>
               ¿Olvidaste tu contraseña?
             </span>
           </div>
@@ -252,16 +255,8 @@ export function ResetPasswordForm() {
 // ── Shared ─────────────────────────────────────────────────────────────────
 function Logo() {
   return (
-    <div style={{ textAlign: 'center', marginBottom: 24 }}>
-      <div style={{ width: 52, height: 52, background: 'var(--azul)', borderRadius: 14, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="7" width="18" height="13" rx="2" fill="white" fillOpacity="0.9"/>
-          <path d="M7 7V5a5 5 0 0 1 10 0v2" stroke="white" strokeWidth="1.5" fill="none"/>
-          <circle cx="12" cy="13" r="2" fill="#1B3A5C"/>
-        </svg>
-      </div>
-      <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--azul)' }}>Actafy</h1>
-      <p style={{ fontSize: 12, color: 'var(--sub)', marginTop: 4 }}>Plataforma para contratistas · Colombia</p>
+    <div style={{ marginBottom: 28 }}>
+      <ActafyLogo size={96} showText={true} showSub={true} />
     </div>
   )
 }

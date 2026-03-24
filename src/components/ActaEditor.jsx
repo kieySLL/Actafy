@@ -4,6 +4,7 @@ import { Field } from './AuthScreen'
 import { fmtCOP, calcTotals, emptyAct, emptyGrupo, today, avatarColor, initials } from '../lib/helpers'
 import { exportPDF, exportWord, exportExcel } from '../lib/exporters'
 import { saveActa } from '../lib/actasDB'
+import { ActafyIcon } from './ActafyLogo'
 
 export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initialForm, actaId }) {
   const { user, userId } = useAuth()
@@ -105,12 +106,22 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
   }
 
   // ── Fotos ──────────────────────────────────────────────────────────────────
+  const MAX_FOTO_MB = 2
   const addFotos = (e) => {
+    const rechazadas = []
     Array.from(e.target.files).forEach(file => {
+      if (file.size > MAX_FOTO_MB * 1024 * 1024) {
+        rechazadas.push(file.name)
+        return
+      }
       const r = new FileReader()
       r.onload = ev => setForm(f => ({ ...f, fotos: [...f.fotos, { data: ev.target.result, cap: file.name.replace(/\.[^.]+$/, '') }] }))
       r.readAsDataURL(file)
     })
+    if (rechazadas.length) {
+      setExportMsg({ type: 'warn', text: `${rechazadas.length} foto(s) superan ${MAX_FOTO_MB}MB y no fueron agregadas: ${rechazadas.join(', ')}` })
+    }
+    e.target.value = ''  // reset input para poder subir el mismo archivo de nuevo
   }
   const removeFoto = (i) => setForm(f => ({ ...f, fotos: f.fotos.filter((_, j) => j !== i) }))
   const setFotoCap = (i, v) => setForm(f => ({ ...f, fotos: f.fotos.map((x, j) => j !== i ? x : { ...x, cap: v }) }))
@@ -131,15 +142,31 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
     totals: T,
   })
 
+  // ── Validación antes de exportar ───────────────────────────────────────────
+  const validateExport = () => {
+    const errors = []
+    if (!form.numero?.trim())   errors.push('Número de acta')
+    if (!form.fecha)            errors.push('Fecha')
+    if (!form.empresa_c?.trim()) errors.push('Cliente / empresa contratante')
+    const tieneActividades = form.grupos.some(g => g.acts.some(a => a.desc?.trim()))
+    if (!tieneActividades)      errors.push('Al menos una actividad con descripción')
+    return errors
+  }
+
   const doExport = async (fmt) => {
-    setExporting(fmt)
     setExportMsg(null)
+    const errors = validateExport()
+    if (errors.length) {
+      setExportMsg({ type: 'warn', text: `Completa antes de exportar: ${errors.join(' · ')}` })
+      return
+    }
+    setExporting(fmt)
     try {
       const d = buildExportData()
       if (fmt === 'PDF') await exportPDF(d)
       else if (fmt === 'Word') await exportWord(d)
-      else exportExcel(d)
-      setExportMsg({ type: 'ok', text: `${fmt} generado y descargado correctamente` })
+      else await exportExcel(d)
+      setExportMsg({ type: 'ok', text: `${fmt} generado y descargado correctamente ✓` })
       // auto-guardar al exportar
       const newId = await saveActa(userId, form, T, actaIdRef.current)
       if (!actaIdRef.current) { actaIdRef.current = newId; setCurrentActaId(newId) }
@@ -163,9 +190,7 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
       <div className="topbar">
         {user.logo
           ? <img src={user.logo} alt="logo" style={{ height: 30, maxWidth: 80, objectFit: 'contain', borderRadius: 4 }} />
-          : <div style={{ width: 30, height: 30, background: 'rgba(255,255,255,0.15)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="14" rx="2" stroke="white" strokeWidth="1.8"/><path d="M8 7V5a4 4 0 0 1 8 0v2" stroke="white" strokeWidth="1.8"/></svg>
-            </div>
+          : <ActafyIcon size={30} />
         }
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ color: '#fff', fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.nombre || 'Mi empresa'}</p>
@@ -177,14 +202,22 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
         </div>
         {/* Indicador de auto-guardado */}
         {saveStatus && (
-          <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
-            color: saveStatus === 'saved'  ? 'rgba(100,220,130,0.95)'
-                 : saveStatus === 'error'  ? 'rgba(255,120,120,0.95)'
-                 : saveStatus === 'saving' ? 'rgba(255,255,255,0.5)'
-                 : 'rgba(255,190,60,0.9)' }}>
-            <span style={{ fontSize: 7, lineHeight: 1 }}>
-              {saveStatus === 'saving' ? '○' : '●'}
-            </span>
+          <span style={{
+            fontSize: 11, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+            background: saveStatus === 'saved'  ? 'rgba(50,200,100,0.18)'
+                      : saveStatus === 'error'  ? 'rgba(255,80,80,0.18)'
+                      : saveStatus === 'saving' ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(255,190,50,0.18)',
+            color: saveStatus === 'saved'  ? 'rgba(120,240,150,1)'
+                 : saveStatus === 'error'  ? 'rgba(255,140,140,1)'
+                 : saveStatus === 'saving' ? 'rgba(255,255,255,0.65)'
+                 : 'rgba(255,210,80,1)',
+            borderRadius: 6, padding: '4px 9px',
+          }}>
+            {saveStatus === 'saving'
+              ? <span className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5, marginRight: 0 }} />
+              : <span style={{ fontSize: 8 }}>●</span>
+            }
             {saveStatus === 'saved'  ? 'Guardado'
            : saveStatus === 'error'  ? 'Error al guardar'
            : saveStatus === 'saving' ? 'Guardando…'
@@ -268,7 +301,7 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
                 )}
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
+              <div className="act-table-wrap">
                 <table className="act-table">
                   <thead>
                     <tr>
@@ -349,7 +382,7 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
               <path d="M8 6V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
             <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>Agregar fotos</p>
-            <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 4 }}>JPG, PNG · múltiples a la vez · opcionales</p>
+            <p style={{ fontSize: 11, color: 'var(--sub)', marginTop: 4 }}>JPG, PNG · máx {MAX_FOTO_MB}MB por foto · opcionales</p>
             <input ref={fotoRef} type="file" accept="image/*" multiple onChange={addFotos} style={{ display: 'none' }} />
           </div>
           {form.fotos.length === 0 ? (
@@ -398,13 +431,13 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
 
           <div className="card">
             <div className="sect-title">Exportar</div>
-            <div className="grid3" style={{ marginBottom: 14 }}>
+            <div className="grid3 export-grid" style={{ marginBottom: 14 }}>
               {[
                 { fmt: 'PDF',  bg: 'var(--rojo-bg)',  fg: 'var(--rojo)',  border: '#F09595', desc: 'Listo para imprimir' },
                 { fmt: 'Word', bg: 'var(--azul-bg)',  fg: 'var(--azul2)', border: '#85B7EB', desc: 'Editable en Word' },
                 { fmt: 'Excel',bg: 'var(--verde-bg)', fg: 'var(--verde)',  border: '#97C459', desc: 'Tabla de actividades' },
               ].map(({ fmt, bg, fg, border, desc }) => (
-                <div key={fmt} className="export-card" style={{ background: bg, borderColor: border }} onClick={() => doExport(fmt)}>
+                <div key={fmt} className="export-card" style={{ background: bg, borderColor: border, opacity: exporting && exporting !== fmt ? 0.6 : 1, pointerEvents: exporting ? 'none' : 'auto' }} onClick={() => doExport(fmt)}>
                   {exporting === fmt
                     ? <><span className="spinner" style={{ borderTopColor: fg, borderColor: `${border}66` }} /><span style={{ fontSize: 12, color: fg }}>Generando…</span></>
                     : <>
