@@ -426,7 +426,9 @@ export default function ActaEditor({ onSettings, onLogout, onBack, onNew, initia
       {/* Nav */}
       <div className="nav-bottom">
         <button onClick={() => setTab(t => Math.max(0, t - 1))} disabled={tab === 0}>← Anterior</button>
-        <button className="btn-primary" onClick={() => setTab(t => Math.min(3, t + 1))} disabled={tab === 3}>Siguiente →</button>
+        {tab < TABS.length - 1 && (
+          <button className="btn-primary" onClick={() => setTab(t => t + 1)}>Siguiente →</button>
+        )}
       </div>
 
       {/* ── Modals ── */}
