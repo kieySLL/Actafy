@@ -65,7 +65,11 @@ export default function LandingPage({ onLogin, onRegister }) {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <a href="#precios" style={{ fontSize: 13, color: '#1B3A5C', fontWeight: 500, textDecoration: 'none', padding: '8px 12px' }}>
+          <a
+            href="#precios"
+            onClick={e => { e.preventDefault(); document.getElementById('precios')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+            style={{ fontSize: 13, color: '#1B3A5C', fontWeight: 500, textDecoration: 'none', padding: '8px 12px', cursor: 'pointer' }}
+          >
             Precios
           </a>
           <button
