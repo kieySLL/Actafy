@@ -369,53 +369,24 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   50%     { transform: translate(-60px, 80px)  scale(1.1);  }
 }
 
-/* El landing cubre el body gradient completamente */
+/* ── Fondo animado landing: patrón de puntos en movimiento diagonal ── */
+@keyframes patternDrift {
+  from { background-position: 0px 0px;   }
+  to   { background-position: 36px 36px; }
+}
+
 .ld-page {
   position: relative;
-  z-index: 0;
-  isolation: isolate;
+  background-color: #f0f7ff;
+  background-image: radial-gradient(circle, rgba(27,90,180,0.18) 1.5px, transparent 1.5px);
+  background-size: 36px 36px;
+  animation: patternDrift 6s linear infinite;
+  /* No afecta nada más — solo el fondo del div */
 }
-.ld-orb-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-.ld-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(70px);
-  will-change: transform;
-}
-.ld-orb-1 {
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, #42ABDE 0%, transparent 65%);
-  opacity: 0.45;
-  top: -180px; left: -150px;
-  animation: orbA 28s ease-in-out infinite;
-}
-.ld-orb-2 {
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, #1B5FAD 0%, transparent 65%);
-  opacity: 0.30;
-  top: 20%; right: -180px;
-  animation: orbB 35s ease-in-out infinite;
-}
-.ld-orb-3 {
-  width: 550px; height: 550px;
-  background: radial-gradient(circle, #5BC8F5 0%, transparent 65%);
-  opacity: 0.40;
-  bottom: 0%; left: 5%;
-  animation: orbC 22s ease-in-out infinite;
-}
-.ld-orb-4 {
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, #2780C0 0%, transparent 65%);
-  opacity: 0.28;
-  top: 50%; right: 2%;
-  animation: orbD 30s ease-in-out infinite;
-}
+
+/* Ya no se usan — mantener vacíos para no romper JSX */
+.ld-orb-wrap { display: none; }
+.ld-orb      { display: none; }
 
 @keyframes ldFadeUp {
   from { opacity: 0; transform: translateY(26px); }
