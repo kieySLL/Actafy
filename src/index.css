@@ -347,75 +347,35 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
    Respeta prefers-reduced-motion para accesibilidad
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Mesh gradient orbs (background landing) ── */
-@keyframes orbA {
-  0%,100% { transform: translate(0px,   0px)   scale(1);    }
-  25%     { transform: translate(60px, -50px)  scale(1.06); }
-  50%     { transform: translate(30px,  80px)  scale(0.94); }
-  75%     { transform: translate(-50px, 40px)  scale(1.03); }
-}
-@keyframes orbB {
-  0%,100% { transform: translate(0px,   0px)   scale(1);    }
-  33%     { transform: translate(-70px, 60px)  scale(1.08); }
-  66%     { transform: translate(50px, -70px)  scale(0.92); }
-}
-@keyframes orbC {
-  0%,100% { transform: translate(0px,   0px)   scale(1);    }
-  40%     { transform: translate(80px,  50px)  scale(1.05); }
-  80%     { transform: translate(-30px,-60px)  scale(0.97); }
-}
-@keyframes orbD {
-  0%,100% { transform: translate(0px,   0px)   scale(1);    }
-  50%     { transform: translate(-60px, 80px)  scale(1.1);  }
+/* ── Animated gradient background (landing) ── */
+@keyframes ldBgShift {
+  0%   { background-position: 0%   50%; }
+  25%  { background-position: 50%  0%;  }
+  50%  { background-position: 100% 50%; }
+  75%  { background-position: 50%  100%;}
+  100% { background-position: 0%   50%; }
 }
 
-/* El landing cubre el body gradient completamente */
 .ld-page {
   position: relative;
-  z-index: 0;
-  isolation: isolate;
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff    0%,
+      #cce8f8   20%,
+      #ddf0fc   35%,
+      #ffffff   50%,
+      #c8e4f5   65%,
+      #e4f4fd   80%,
+      #ffffff  100%
+    );
+  background-size: 400% 400%;
+  animation: ldBgShift 10s ease-in-out infinite;
 }
-.ld-orb-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-.ld-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(70px);
-  will-change: transform;
-}
-.ld-orb-1 {
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, #42ABDE 0%, transparent 65%);
-  opacity: 0.45;
-  top: -180px; left: -150px;
-  animation: orbA 28s ease-in-out infinite;
-}
-.ld-orb-2 {
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, #1B5FAD 0%, transparent 65%);
-  opacity: 0.30;
-  top: 20%; right: -180px;
-  animation: orbB 35s ease-in-out infinite;
-}
-.ld-orb-3 {
-  width: 550px; height: 550px;
-  background: radial-gradient(circle, #5BC8F5 0%, transparent 65%);
-  opacity: 0.40;
-  bottom: 0%; left: 5%;
-  animation: orbC 22s ease-in-out infinite;
-}
-.ld-orb-4 {
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, #2780C0 0%, transparent 65%);
-  opacity: 0.28;
-  top: 50%; right: 2%;
-  animation: orbD 30s ease-in-out infinite;
-}
+
+/* Quitamos el wrap de orbs — ya no se usa */
+.ld-orb-wrap { display: none; }
+.ld-orb      { display: none; }
 
 @keyframes ldFadeUp {
   from { opacity: 0; transform: translateY(26px); }
@@ -503,13 +463,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   .ld-float,  .ld-pulse,
   .ld-reveal, .ld-stagger .ld-item,
   .ld-feat,   .ld-plan,   .ld-btn,
-  .ld-orb {
-    animation:  none !important;
-    transition: none !important;
-    opacity:    1    !important;
-    transform:  none !important;
-  }
-  .ld-orb-wrap { display: none; }
+  .ld-page { animation: none !important; background: #f0f8ff !important; }
 }
 
 /* ── Responsive móvil ─────────────────────────────────────────────────────── */

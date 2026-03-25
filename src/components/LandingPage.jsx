@@ -36,15 +36,7 @@ export default function LandingPage({ onLogin, onRegister }) {
   const ctaRef       = useReveal(0.15)
 
   return (
-    <div className="ld-page" style={{ minHeight: '100vh', fontFamily: 'inherit', overflowX: 'hidden', background: '#ffffff' }}>
-
-      {/* ── Mesh gradient background ─────────────────────────────────────────── */}
-      <div className="ld-orb-wrap" aria-hidden="true">
-        <div className="ld-orb ld-orb-1" />
-        <div className="ld-orb ld-orb-2" />
-        <div className="ld-orb ld-orb-3" />
-        <div className="ld-orb ld-orb-4" />
-      </div>
+    <div className="ld-page" style={{ minHeight: '100vh', fontFamily: 'inherit', overflowX: 'hidden' }}>
 
       {/* ── Navbar ───────────────────────────────────────────────────────────── */}
       <nav className="ld-nav" style={{
