@@ -634,25 +634,24 @@ export async function exportExcel(d) {
   spaceRow.height = 28
   // sin mergeCells ni bordes — solo altura
 
-  // Fila de LÍNEAS: borde inferior en A:B (izq) y D:E (der); C y F quedan sin borde = hueco visual
+  // Fila de LÍNEAS: A=margen izq | B:C=línea director | D=gap | E:F=línea contratista
   const lineRow = ws.addRow(['', '', '', '', '', ''])
   const lineRn  = ws.rowCount
   lineRow.height = 3
-  ws.getCell(`A${lineRn}`).border = { bottom: bdM() }
+  ws.mergeCells(`B${lineRn}:C${lineRn}`)
+  ws.mergeCells(`E${lineRn}:F${lineRn}`)
   ws.getCell(`B${lineRn}`).border = { bottom: bdM() }
-  // C sin borde → gap entre las dos líneas
-  ws.getCell(`D${lineRn}`).border = { bottom: bdM() }
   ws.getCell(`E${lineRn}`).border = { bottom: bdM() }
-  // F sin borde → margen derecho
+  // A = margen izquierdo sin borde | D = gap central sin borde
 
   // Fila de NOMBRES (debajo de la línea)
   const nameRow = ws.addRow(['', '', '', '', '', ''])
   const nameRn  = ws.rowCount
   nameRow.height = 15
-  ws.mergeCells(`A${nameRn}:B${nameRn}`)   // zona izquierda
-  ws.mergeCells(`D${nameRn}:E${nameRn}`)   // zona derecha
-  const nA = ws.getCell(`A${nameRn}`)
-  const nD = ws.getCell(`D${nameRn}`)
+  ws.mergeCells(`B${nameRn}:C${nameRn}`)   // zona director
+  ws.mergeCells(`E${nameRn}:F${nameRn}`)   // zona contratista
+  const nA = ws.getCell(`B${nameRn}`)
+  const nD = ws.getCell(`E${nameRn}`)
   nA.value     = d.director    || '—'
   nD.value     = d.contratista || '—'
   nA.font      = fnt(true, DARK, 9)
@@ -664,10 +663,10 @@ export async function exportExcel(d) {
   const lblRow = ws.addRow(['', '', '', '', '', ''])
   const lblRn  = ws.rowCount
   lblRow.height = 13
-  ws.mergeCells(`A${lblRn}:B${lblRn}`)
-  ws.mergeCells(`D${lblRn}:E${lblRn}`)
-  const lA = ws.getCell(`A${lblRn}`)
-  const lD = ws.getCell(`D${lblRn}`)
+  ws.mergeCells(`B${lblRn}:C${lblRn}`)
+  ws.mergeCells(`E${lblRn}:F${lblRn}`)
+  const lA = ws.getCell(`B${lblRn}`)
+  const lD = ws.getCell(`E${lblRn}`)
   lA.value     = 'RECIBE'
   lD.value     = 'CONTRATISTA'
   lA.font      = fnt(false, '506070', 8)
