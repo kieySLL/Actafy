@@ -523,7 +523,8 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
     opacity:    1    !important;
     transform:  none !important;
   }
-  .ld-bg { display: none; }
+  .ld-bbl { animation: none !important; opacity: 0 !important; }
+  .ld-wave { animation: none !important; }
 }
 
 /* ── Responsive móvil ─────────────────────────────────────────────────────── */
