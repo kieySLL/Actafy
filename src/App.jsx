@@ -116,6 +116,8 @@ function AppInner() {
     setView('editor')
   }
 
+  const handleLogout = () => { logout(); setAuthMode(null) }
+
   if (view === 'settings') return <Settings onBack={goHistorial} />
 
   if (view === 'editor') return (
@@ -126,7 +128,7 @@ function AppInner() {
       onBack={goHistorial}
       onNew={handleNew}
       onSettings={() => setView('settings')}
-      onLogout={logout}
+      onLogout={handleLogout}
     />
   )
 
@@ -146,7 +148,7 @@ function AppInner() {
         onNew={handleNew}
         onEdit={handleEdit}
         onSettings={() => setView('settings')}
-        onLogout={logout}
+        onLogout={handleLogout}
         planLimit={limit}
         userId={userId}
       />
