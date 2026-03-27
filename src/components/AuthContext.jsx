@@ -61,8 +61,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   const fetchProfile = async (uid) => {
-    const { data, error } = await supabase.from('perfiles').select('*').eq('id', uid).single()
-    if (error && error.code !== 'PGRST116') {
+    const { data, error } = await Promise.race([
+      supabase.from('perfiles').select('*').eq('id', uid).single(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000)),
+    ]).catch(() => ({ data: null, error: { code: 'timeout' } }))
+    if (error && error.code !== 'PGRST116' && error.code !== 'timeout') {
       console.error('Error cargando perfil:', error.message)
     }
     setProfile({

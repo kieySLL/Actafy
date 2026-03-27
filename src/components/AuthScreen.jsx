@@ -23,9 +23,23 @@ function LoginForm({ onSwitch, onForgot, onBack }) {
     if (!email || !pass) return
     setLoading(true)
     setErr('')
+
+    // Si tarda más de 10s, mostrar error y liberar botón
+    const guard = setTimeout(() => {
+      setLoading(false)
+      setErr('La conexión tardó demasiado. Verifica tu internet e intenta de nuevo.')
+    }, 10000)
+
     const e = await login(email.trim().toLowerCase(), pass)
-    if (e) setErr(e)
-    setLoading(false)
+    clearTimeout(guard)
+
+    if (e) {
+      // Solo resetear loading si hay error — si fue exitoso el componente
+      // se desmonta solo cuando AuthContext setea el usuario
+      setErr(e)
+      setLoading(false)
+    }
+    // Sin error: "Entrando…" se mantiene hasta que App.jsx cambia de vista
   }
 
   return (
