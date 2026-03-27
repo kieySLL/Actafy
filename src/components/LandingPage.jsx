@@ -343,10 +343,10 @@ export default function LandingPage({ onLogin, onRegister }) {
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 24 }}>COP / mes</p>
             <button
               className="ld-btn"
-              onClick={onRegister}
-              style={{ width: '100%', padding: '11px', borderRadius: 9, border: 'none', background: '#42ABDE', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 24, boxShadow: '0 4px 12px rgba(66,171,222,0.4)' }}
+              onClick={() => window.open('https://wa.me/573002454640?text=' + encodeURIComponent('Hola, quiero contratar el plan Pro de Actafy 🚀'), '_blank')}
+              style={{ width: '100%', padding: '11px', borderRadius: 9, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 24, boxShadow: '0 4px 12px rgba(37,211,102,0.35)' }}
             >
-              Empezar 7 días gratis →
+              💬 Contratar por WhatsApp →
             </button>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
