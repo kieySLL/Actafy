@@ -189,22 +189,28 @@ function CatalogoTab() {
     const file = e.target.files[0]; if (!file) return
     const reader = new FileReader()
     reader.onload = ev => {
-      const wb = XLSX.read(ev.target.result, { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-      if (rows.length < 2) return
-      const header = rows[0].map(h => String(h).toLowerCase().trim())
-      const iCod = header.findIndex(h => h.includes('cod') || h === 'item')
-      const iAct = header.findIndex(h => h.includes('activ') || h.includes('desc'))
-      const iUnd = header.findIndex(h => h.includes('und') || h.includes('unit'))
-      const iVal = header.findIndex(h => h.includes('val') || h.includes('prec'))
-      const items = rows.slice(1).map(row => ({
-        codigo:    iCod >= 0 ? String(row[iCod] ?? '').trim() : String(row[0] ?? '').trim(),
-        actividad: iAct >= 0 ? String(row[iAct] ?? '').trim() : String(row[1] ?? '').trim(),
-        und:       iUnd >= 0 ? String(row[iUnd] ?? '').trim() || 'UND' : String(row[2] ?? '').trim() || 'UND',
-        valor:     parseFloat(iVal >= 0 ? row[iVal] : row[3]) || 0,
-      })).filter(it => it.actividad)
-      updateUser({ catalogo: [...(user.catalogo || []), ...items] })
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' })
+        if (!wb.SheetNames.length) return
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        if (!ws) return
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false })
+        if (rows.length < 2) return
+        const header = rows[0].map(h => String(h).toLowerCase().trim())
+        const iCod = header.findIndex(h => h.includes('cod') || h === 'item')
+        const iAct = header.findIndex(h => h.includes('activ') || h.includes('desc'))
+        const iUnd = header.findIndex(h => h.includes('und') || h.includes('unit'))
+        const iVal = header.findIndex(h => h.includes('val') || h.includes('prec'))
+        const items = rows.slice(1).map(row => ({
+          codigo:    String(iCod >= 0 ? row[iCod] ?? '' : row[0] ?? '').trim(),
+          actividad: String(iAct >= 0 ? row[iAct] ?? '' : row[1] ?? '').trim(),
+          und:       String(iUnd >= 0 ? row[iUnd] ?? '' : row[2] ?? '').trim() || 'UND',
+          valor:     parseFloat(iVal >= 0 ? row[iVal] : row[3]) || 0,
+        })).filter(it => it.actividad)
+        if (items.length) updateUser({ catalogo: [...(user.catalogo || []), ...items] })
+      } catch (err) {
+        alert('Error leyendo el archivo Excel. Asegúrate de que sea un archivo .xlsx válido.')
+      }
     }
     reader.readAsArrayBuffer(file)
     e.target.value = ''
