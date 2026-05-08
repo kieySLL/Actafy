@@ -343,15 +343,31 @@ function CatalogoTab() {
 
     reader.onload = async (ev) => {
       try {
-        // Leer con ExcelJS (ya instalado, reemplaza xlsx)
-        const wb = new ExcelJS.Workbook()
-        await wb.xlsx.load(ev.target.result)
-        const ws   = wb.worksheets[0]
-        const rows = []
-        ws.eachRow((row) => {
-          // row.values es 1-based, slice(1) lo convierte a 0-based
-          rows.push(row.values.slice(1).map(v => (v == null ? '' : String(v))))
-        })
+        let rows = []
+        const ext = file.name.split('.').pop().toLowerCase()
+
+        if (ext === 'csv') {
+          const text = new TextDecoder('utf-8').decode(ev.target.result)
+          const sep  = text.includes(';') ? ';' : ','
+          rows = text.split(/\r?\n/).map(line => line.split(sep).map(c => c.replace(/^"|"$/g, '').trim()))
+          rows = rows.filter(r => r.some(c => c !== ''))
+        } else if (ext === 'xls') {
+          setErr('Formato .xls no soportado. Por favor guarda el archivo como .xlsx e intenta de nuevo.')
+          setImporting(false)
+          return
+        } else {
+          const wb = new ExcelJS.Workbook()
+          await wb.xlsx.load(ev.target.result)
+          const ws = wb.worksheets[0]
+          if (!ws) {
+            setErr('No se encontró ninguna hoja en el archivo. Verifica que el Excel tenga al menos una hoja con datos.')
+            setImporting(false)
+            return
+          }
+          ws.eachRow((row) => {
+            rows.push(row.values.slice(1).map(v => (v == null ? '' : String(v))))
+          })
+        }
 
         if (rows.length < 2) {
           setErr('El archivo está vacío o no tiene datos')
